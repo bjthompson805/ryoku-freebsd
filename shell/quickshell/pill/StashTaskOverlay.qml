@@ -22,7 +22,7 @@ Rectangle {
     readonly property string glyph: Stash.task === "install" ? "install" : "compress"
 
     readonly property string prompt: Stash.task === "install"
-        ? ("Install " + Stash.count + (Stash.count === 1 ? " file" : " files") + "? AppImages, tarballs, and packages become launchable apps.")
+        ? ("Install " + Stash.count + (Stash.count === 1 ? " file" : " files") + "? FreeBSD packages and app tarballs become launchable apps.")
         : ("Compress " + Stash.count + (Stash.count === 1 ? " file" : " files") + "? Smaller copies are written beside the originals.")
 
     radius: Motion.rTile * s

@@ -55,11 +55,10 @@ Singleton {
         var n = files.count;
         for (var i = 0; i < n; i++) {
             var nm = ("" + files.get(i, "fileName")).toLowerCase();
-            // Everything stash-install.sh can install: AppImages, self-contained
-            // tarballs, Arch packages (.pkg.tar.zst), Flatpak bundles, and .deb/.rpm
-            // (payload extracted, best-effort). Self-extracting .bin/.run stay out:
+            // Everything stash-install.sh can install: FreeBSD packages (.pkg)
+            // and self-contained tarballs. Self-extracting .bin/.run stay out:
             // running an arbitrary installer blind is unsafe.
-            if (/\.(appimage|flatpak|deb|rpm|tar\.gz|tgz|tar\.xz|tar\.bz2|tar\.zst|tar)$/.test(nm))
+            if (/\.(pkg|tar\.gz|tgz|tar\.xz|txz|tar\.bz2|tar\.zst|tzst|tar)$/.test(nm))
                 return true;
         }
         return false;

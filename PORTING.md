@@ -4,7 +4,6 @@ What still assumes Linux. Delete a line when it is done.
 
 ## Dead references to removed Linux-only features
 
-- Stash installer: `pill/Singletons/Stash.qml`.
 - Update channel: `pill/Singletons/Updates.qml`, `shell/ipc/wallpaper.go` (`ryoku update`, `ryoku-leds`).
 - Battery charge limit: `pill/Singletons/Battery.qml` calls `ryoku-charge-limit`, which used Linux sysfs + udev. Hidden while the helper is absent.
 
