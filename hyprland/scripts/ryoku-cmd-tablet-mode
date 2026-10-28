@@ -1,0 +1,50 @@
+#!/bin/sh
+# tablet mode = disable the built-in keyboard + trackpad only (a 2-in-1
+# folded flat), never external/USB/BT peripherals.
+#
+#   ryoku-cmd-tablet-mode status    "on" | "off"
+#   ryoku-cmd-tablet-mode on|off|toggle
+#
+# keyboard: "at-keyboard", the evdev name FreeBSD's atkbd gives a laptop's
+# built-in keyboard. trackpad: any pointer whose name ends in "-touchpad",
+# plus siblings sharing its prefix (the same hardware's "-mouse" node, which
+# would otherwise still pass clicks through).
+#
+# per-device enable goes through `hyprctl eval` + hl.device. `hyprctl reload`
+# re-reads the config and re-enables the devices while the state file still
+# says on; toggle twice to recover.
+set -u
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku-tablet-mode"
+
+target_devices() {
+  hyprctl devices -j 2>/dev/null | jq -r '
+    (.keyboards[]? | select(.name == "at-keyboard") | .name),
+    ( [.mice[]? | select(.name | test("-touchpad$"))] as $pads
+      | ($pads | map(.name | sub("-touchpad$"; ""))) as $prefixes
+      | .mice[]?
+      | .name as $n
+      | select(($prefixes | index($n | sub("-(touchpad|mouse)$"; ""))) != null)
+      | $n
+    )
+  ' | sort -u
+}
+
+set_devices() { # $1 = true|false
+  lua=$(target_devices | while IFS= read -r name; do
+    [ -n "$name" ] && printf 'hl.device({ name = "%s", enabled = %s })\n' "$name" "$1"
+  done)
+  [ -n "$lua" ] && hyprctl eval "$lua" >/dev/null 2>&1
+  return 0
+}
+
+on() { mkdir -p "$(dirname "$state")"; : >"$state"; set_devices false; }
+off() { rm -f "$state"; set_devices true; }
+
+case "${1:-toggle}" in
+  status) if [ -e "$state" ]; then echo on; else echo off; fi ;;
+  on)     on ;;
+  off)    off ;;
+  toggle) if [ -e "$state" ]; then off; else on; fi ;;
+  *) echo "usage: ryoku-cmd-tablet-mode status|on|off|toggle" >&2; exit 1 ;;
+esac

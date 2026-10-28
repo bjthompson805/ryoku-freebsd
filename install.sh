@@ -41,11 +41,29 @@ if [ $system -eq 1 ]; then
   $as_root sysrc dbus_enable=YES seatd_enable=YES >/dev/null
   $as_root service dbus status >/dev/null 2>&1 || $as_root service dbus start
   $as_root service seatd status >/dev/null 2>&1 || $as_root service seatd start
+  say "enabling webcamd"
+  $as_root sysrc kld_list+=cuse webcamd_enable=YES >/dev/null
+  $as_root kldload -n cuse
   # video: seatd hands the GPU to members. operator: shutdown(8) and
-  # acpiconf -s 3 (suspend) from the power menu without root.
-  for g in video operator; do
+  # acpiconf -s 3 (suspend) from the power menu without root. webcamd: the
+  # /dev/video* nodes webcamd creates.
+  for g in video operator webcamd; do
     id -Gn | tr ' ' '\n' | grep -qx "$g" || { $as_root pw groupmod "$g" -m "$(id -un)"; say "added $(id -un) to $g (log in again)"; }
   done
+
+  # ryoku-priv: the desktop's only root entry point (lid behaviour, the
+  # webcam kill switch), passwordless for this user and this file only.
+  $as_root install -o root -g wheel -m 755 "$repo/system/ryoku-priv" /usr/local/libexec/ryoku-priv
+  if [ "$as_root" = doas ]; then
+    rule="permit nopass $(id -un) as root cmd /usr/local/libexec/ryoku-priv"
+    $as_root grep -qxF "$rule" /usr/local/etc/doas.conf 2>/dev/null ||
+      printf '%s\n' "$rule" | $as_root tee -a /usr/local/etc/doas.conf >/dev/null
+  else
+    printf '%s ALL=(root) NOPASSWD: /usr/local/libexec/ryoku-priv\n' "$(id -un)" |
+      $as_root tee /usr/local/etc/sudoers.d/ryoku >/dev/null
+    $as_root chmod 440 /usr/local/etc/sudoers.d/ryoku
+  fi
+  say "installed /usr/local/libexec/ryoku-priv"
 fi
 
 # --- build ---------------------------------------------------------------------

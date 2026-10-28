@@ -271,32 +271,6 @@ Grid {
         }
     }
 
-    // webcam bridge: shows only while the non-UVC libcamera->v4l2loopback
-    // bridge is up (see Singletons/Webcam.qml, ryoku-cmd-webcam-bridge). the
-    // one cool-toned glyph in an otherwise all-warm status cluster, so "a
-    // background process is relaying your camera" reads as distinct from
-    // every ember-toned feature glyph here. click opens a popout explaining
-    // what it is and showing its live status.
-    Item {
-        id: webcamBridgeIcon
-        visible: Webcam.bridgeOn
-        width: status.glyphPx + 4 * status.s
-        height: status.glyphPx + 4 * status.s
-
-        MaterialIcon {
-            anchors.centerIn: parent
-            text: "videocam"
-            fill: Webcam.streaming ? 1 : 0
-            color: Theme.bridgeGlow
-            font.pixelSize: status.glyphPx
-        }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: status.open("webcamBridge", webcamBridgeIcon)
-        }
-    }
-
     // keep-awake shows only while it burns.
     MaterialIcon {
         visible: Flags.keepAwake

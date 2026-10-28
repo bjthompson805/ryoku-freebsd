@@ -90,9 +90,8 @@ ShellRoot {
         // outside this process), so "start" = idempotent confirm; "stop"
         // clears a stray when Keep-Awake is off.
         root.syncCaffeine(Flags.keepAwake ? "start" : "stop");
-        // re-arm the Lid Sleep override the same way: "start" holds the
-        // handle-lid-switch inhibitor when the user has sleep-on-lid-close
-        // turned off, "stop" is a no-op idle check otherwise.
+        // re-arm the Lid Sleep override the same way: "start" holds it when
+        // the user turned sleep-on-lid-close off, "stop" is a no-op otherwise.
         root.syncLidSleep(Flags.lidSleep ? "stop" : "start");
         // re-assert Game Mode if it persisted on. relogin brings Hyprland
         // up fresh from the lua config, so the compositor tuning has to be
@@ -164,8 +163,8 @@ ShellRoot {
     // Keep-Awake's durable hold lives outside the shell so it survives a
     // reload/restart: ryoku-cmd-caffeine owns hypridle, independent of our
     // lifetime. the Wayland IdleInhibitor above dies with the pill on every
-    // respawn; this bridge keeps Keep-Awake unbroken across the swap. every surface toggle just flips
-    // Flags.keepAwake.
+    // respawn; this bridge keeps Keep-Awake unbroken across the swap. every
+    // surface toggle just flips Flags.keepAwake.
     readonly property string caffeineScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-caffeine"
 
     function syncCaffeine(action) {
@@ -223,10 +222,9 @@ ShellRoot {
         onTriggered: root.syncGameMode("reapply")
     }
 
-    // Lid Sleep: on (default) leaves logind's own suspend-on-lid-close
-    // alone -- nothing to do. off asks ryoku-cmd-lid-sleep to hold a
-    // handle-lid-switch inhibitor and dpms the screen off/on itself instead,
-    // same durable-outside-the-shell shape as Keep-Awake/Game-Mode above.
+    // Lid Sleep: on (default) leaves the kernel's lid behaviour alone. off
+    // asks ryoku-cmd-lid-sleep to set hw.acpi.lid_switch_state=NONE, same
+    // durable-outside-the-shell shape as Keep-Awake/Game-Mode above.
     readonly property string lidSleepScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-lid-sleep"
 
     function syncLidSleep(action) {
@@ -635,7 +633,7 @@ ShellRoot {
             // the grab.
             readonly property bool anyPopoutFloating: mixerPop.floating || powerPop.floating
                 || networkPop.floating || batteryPop.floating || displayPop.floating
-                || webcamBridgePop.floating || resourcesPop.floating || weatherPop.floating
+                || resourcesPop.floating || weatherPop.floating
                 || netSpeedPop.floating || agentUsagePop.floating || windowInfoPop.floating
                 || bluetoothPop.floating || calendarPop.floating || mediaPop.floating
                 || clipboardPop.floating || inboxPop.floating
@@ -674,7 +672,7 @@ ShellRoot {
             mask: monFullscreen ? hiddenRegion
                 : ((modal || recHud.dragging || delosIsland.dragging
                     || mixerPop.floatDragging || powerPop.floatDragging || networkPop.floatDragging
-                    || batteryPop.floatDragging || displayPop.floatDragging || webcamBridgePop.floatDragging
+                    || batteryPop.floatDragging || displayPop.floatDragging
                     || resourcesPop.floatDragging || weatherPop.floatDragging || netSpeedPop.floatDragging
                     || agentUsagePop.floatDragging || windowInfoPop.floatDragging || bluetoothPop.floatDragging
                     || calendarPop.floatDragging || mediaPop.floatDragging || clipboardPop.floatDragging
@@ -750,8 +748,6 @@ ShellRoot {
                 Region { x: weatherPop.floatHudX; y: weatherPop.floatHudY; width: weatherPop.floatHudW; height: weatherPop.floatHudH }
                 Region { x: resourcesPop.maskX; y: resourcesPop.maskY; width: resourcesPop.maskW; height: resourcesPop.maskH }
                 Region { x: resourcesPop.floatHudX; y: resourcesPop.floatHudY; width: resourcesPop.floatHudW; height: resourcesPop.floatHudH }
-                Region { x: webcamBridgePop.maskX; y: webcamBridgePop.maskY; width: webcamBridgePop.maskW; height: webcamBridgePop.maskH }
-                Region { x: webcamBridgePop.floatHudX; y: webcamBridgePop.floatHudY; width: webcamBridgePop.floatHudW; height: webcamBridgePop.floatHudH }
                 Region { x: agentUsagePop.maskX; y: agentUsagePop.maskY; width: agentUsagePop.maskW; height: agentUsagePop.maskH }
                 Region { x: agentUsagePop.floatHudX; y: agentUsagePop.floatHudY; width: agentUsagePop.floatHudW; height: agentUsagePop.floatHudH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
@@ -1089,41 +1085,6 @@ ShellRoot {
                         DisplayPopout {
                             s: overlay.s
                             open: displayPop.floating
-                        }
-                    }
-                }
-
-                // webcam-bridge popout: opened from BarStatus.qml's bridge
-                // icon, which only shows while the non-UVC libcamera bridge
-                // is up -- explains what it is and reports its live status.
-                UndockablePopout {
-                    id: webcamBridgePop
-                    group: blobGroup
-                    frameThickness: overlay.barVisibleH
-                    radius: Config.frameRadius
-                    smoothing: Config.frameSmoothing
-                    edge: overlay.barPos
-                    hoverOpen: false
-                    alongCenter: root.popoutCenter
-                    s: overlay.s
-                    active: !overlay.monFullscreen
-                    pinned: root.popout === "webcamBridge" && root.popoutMon === overlay.modelData.name
-                    openW: webcamBridgeContent.implicitWidth
-                    openH: webcamBridgeContent.implicitHeight
-                    barEdge: (Config.barEnabled && !overlay.monFullscreen) ? overlay.barPos : ""
-                    barBand: overlay.barBand
-                    onCloseRequested: root.popout = ""
-
-                    WebcamBridgePopout {
-                        id: webcamBridgeContent
-                        s: overlay.s
-                        open: webcamBridgePop.prog > 0.5
-                    }
-
-                    floatingContent: Component {
-                        WebcamBridgePopout {
-                            s: overlay.s
-                            open: webcamBridgePop.floating
                         }
                     }
                 }

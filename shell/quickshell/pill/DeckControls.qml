@@ -11,15 +11,13 @@ import "Singletons"
  * states on top (Keep-Awake with its live elapsed clock, Game-Mode with its
  * profile name) as wide stat-tiles carrying an inline switch, then the
  * momentary quick-toggles (wifi, bluetooth, mic, do-not-disturb, night,
- * airplane, tablet, webcam) as a collapsible, reorderable tile row
- * (DeckToggles.qml) beneath. each session tile carries a small info button that
- * unfolds a details card (DeckModeInfo.qml) between the tiles and that row:
- * what the mode does and the switches for its optional parts. this file owns
- * most toggles' live state/probes (webcam is the exception --
- * Singletons/Webcam.qml owns it instead, since the bar's bridge indicator needs
- * it live even while the deck is closed);
- * DeckToggles owns the catalog, layout and edit-mode UI. polling here (wifi
- * / mic / night / airplane / tablet probes) is gated on `active` so it only
+ * airplane, tablet, webcam, lid sleep) as a collapsible, reorderable tile row
+ * (DeckToggles.qml) beneath. each session tile carries a small info button
+ * that unfolds a details card (DeckModeInfo.qml) between the tiles and that
+ * row: what the mode does and the switches for its optional parts. this file
+ * owns the toggles' live state/probes (webcam's lives in Singletons/Webcam.qml,
+ * driven by `active` here); DeckToggles owns the catalog, layout and edit-mode
+ * UI. polling here (wifi / mic / night / airplane / tablet probes) is gated on `active` so it only
  * runs while the deck is open. content is column-wide; the deck renders the
  * "Controls" eyebrow above us.
  */
@@ -134,11 +132,7 @@ Item {
     }
     Timer { id: tabletPoll; interval: 2000; onTriggered: tabletProc.running = true }
 
-    // webcam: unlike every toggle above, its live state (Webcam.on) is owned
-    // by the global Webcam singleton, not local Process/Timer pairs here --
-    // the bar's bridge indicator (BarStatus.qml) needs a live answer even
-    // while the deck is closed, so it polls continuously rather than only
-    // while `active`. DeckToggles.qml reads/writes it directly.
+    Binding { target: Webcam; property: "active"; value: root.active }
 
     function repoll() {
         wifiProc.running = true;
@@ -307,7 +301,8 @@ Item {
         }
 
         // quick-toggles: collapsible, reorderable row (wifi/bluetooth/mic/
-        // dnd/night/airplane/tablet), catalog + edit-mode in DeckToggles.qml.
+        // dnd/night/airplane/tablet/webcam/lid sleep), catalog + edit-mode
+        // in DeckToggles.qml.
         DeckToggles {
             width: parent.width
             s: root.s

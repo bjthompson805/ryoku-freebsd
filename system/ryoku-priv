@@ -1,0 +1,28 @@
+#!/bin/sh
+# The one root entry point the desktop uses. install.sh puts it at
+# /usr/local/libexec/ryoku-priv, root-owned, and grants the login user
+# passwordless doas/sudo for this file only, so every action here must be
+# fixed: no argument reaches a command line unvalidated.
+#
+#   ryoku-priv lid S3|S4|S5|NONE   what closing the lid does
+#   ryoku-priv webcam on|off       start or stop webcamd and keep it that way
+set -eu
+
+case "${1:-} ${2:-}" in
+  "lid S3"|"lid S4"|"lid S5"|"lid NONE")
+    sysctl hw.acpi.lid_switch_state="$2" >/dev/null
+    ;;
+  "webcam on")
+    sysrc webcamd_enable=YES >/dev/null
+    service webcamd start
+    ;;
+  "webcam off")
+    sysrc webcamd_enable=NO >/dev/null
+    service webcamd onestop 2>/dev/null || true
+    pkill -x webcamd 2>/dev/null || true
+    ;;
+  *)
+    echo "usage: ryoku-priv lid S3|S4|S5|NONE | webcam on|off" >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,25 @@
+#!/bin/sh
+# webcam kill switch. FreeBSD's USB cameras all run through webcamd, so off
+# stops it and keeps devd from bringing it back on the next plug; on undoes
+# both. no webcamd installed reads as off.
+#
+#   ryoku-cmd-webcam status    "on" | "off"
+#   ryoku-cmd-webcam on|off|toggle
+set -eu
+
+priv() {
+  if command -v doas >/dev/null 2>&1; then doas -n /usr/local/libexec/ryoku-priv "$@"
+  else sudo -n /usr/local/libexec/ryoku-priv "$@"; fi
+}
+
+status() {
+  [ -x /usr/local/etc/rc.d/webcamd ] && [ "$(sysrc -n webcamd_enable 2>/dev/null)" = YES ] && echo on || echo off
+}
+
+case "${1:-toggle}" in
+  status) status ;;
+  on)     priv webcam on ;;
+  off)    priv webcam off ;;
+  toggle) if [ "$(status)" = on ]; then priv webcam off; else priv webcam on; fi ;;
+  *) echo "usage: ryoku-cmd-webcam status|on|off|toggle" >&2; exit 2 ;;
+esac

@@ -51,10 +51,6 @@ Singleton {
     readonly property string flameTip:   "#ffd2bf"
     readonly property color todayWarm: "#ff9e64"
     readonly property color ghost:     "#414868"
-    // the one deliberately cool accent in an otherwise all-warm palette: the
-    // webcam-bridge bar indicator, so "a background process is relaying your
-    // camera" reads as distinct from every ember-toned feature glyph.
-    readonly property color bridgeGlow: "#7ec8e3"
     readonly property color frameBg:     Qt.rgba(226/255, 52/255, 42/255, 0.10)
     readonly property color frameBorder: Qt.rgba(243/255, 237/255, 225/255, 0.18)
     readonly property color creamMenu:   Qt.rgba(230/255, 220/255, 203/255, 0.82)

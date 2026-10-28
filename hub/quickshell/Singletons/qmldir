@@ -4,7 +4,6 @@ singleton Wallust Wallust.qml
 singleton Config Config.qml
 singleton HubHighlight HubHighlight.qml
 singleton Devices Devices.qml
-singleton WebcamPrefs WebcamPrefs.qml
 singleton BluetoothLink BluetoothLink.qml
 singleton WifiLink WifiLink.qml
 singleton Spawn Spawn.qml

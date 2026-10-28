@@ -11,6 +11,7 @@ hypridle
 hyprpicker
 hyprsunset
 gnome-keyring
+webcamd
 
 # shell runtime
 quickshell

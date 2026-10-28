@@ -17,20 +17,6 @@ Item {
     // read by the hub to drop a live preview when this page is left.
     readonly property bool previewDirty: store.dirty
 
-    // camera flip draft: WebcamPrefs isn't part of HyprStore (no Hyprland
-    // meaning, its own JSON file), but this control lives on a Hub page and
-    // must obey the same "preview only, persist on Save" contract as every
-    // other control here -- not WebcamPrefs' own instant-apply default (that
-    // default is right for a live shell toggle, e.g. the Mirror bubble's
-    // flip, but wrong for a Hub settings row). So: a local draft, synced from
-    // WebcamPrefs.flip180 on load, only ever written back to the singleton
-    // (which persists it immediately itself) from Save below. Leaving the
-    // page destroys this Item and its draft with it, so an unsaved edit is
-    // discarded for free, same as HyprStore's edits are via previewDirty.
-    property bool flipDraft: WebcamPrefs.flip180
-    readonly property bool flipDirty: page.flipDraft !== WebcamPrefs.flip180
-    readonly property bool anyDirty: store.dirty || page.flipDirty
-
     // xkb-rules layouts, mapped to Dropdown options.
     property var layoutOptions: []
 
@@ -503,31 +489,6 @@ Item {
                     onModified: (v) => store.edit("repeatDelay", v)
                 }
             }
-
-            // camera calibration: unrelated to HyprStore (no Hyprland meaning),
-            // so it's its own small JSON-backed singleton (WebcamPrefs) instead
-            // of riding the hypr.json/settings.lua pipeline every other control
-            // on this page uses. Only matters for the non-UVC bridge path in
-            // ryoku-cmd-webcam; harmless (unread) on a plain UVC webcam.
-            SettingSection {
-                width: parent.width
-                title: "CAMERA"
-                ToggleRow {
-                    width: Math.min(parent.width, 460); label: "Flip webcam 180°"
-                    highlightId: "camera"
-                    checked: page.flipDraft
-                    onToggled: (v) => page.flipDraft = v
-                }
-                Text {
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    text: "Only applies to built-in cameras that need Ryoku's virtual-camera bridge (not plain USB webcams) -- some sensors are mounted upside-down with no orientation entry in libcamera's database, so the feed needs a manual flip."
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: 12
-                    font.weight: Font.Medium
-                }
-            }
         }
     }
 
@@ -540,9 +501,9 @@ Item {
         anchors.bottomMargin: 8
         height: 60
         radius: Theme.radius
-        color: page.anyDirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
+        color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.08) : Theme.surfaceLo
         border.width: 1
-        border.color: page.anyDirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line
+        border.color: store.dirty ? Qt.rgba(Theme.ember.r, Theme.ember.g, Theme.ember.b, 0.4) : Theme.line
         Behavior on color { ColorAnimation { duration: Theme.medium } }
         Behavior on border.color { ColorAnimation { duration: Theme.medium } }
 
@@ -562,8 +523,8 @@ Item {
             anchors.left: statusDot.right
             anchors.leftMargin: 11
             anchors.verticalCenter: parent.verticalCenter
-            text: page.anyDirty ? "Previewing unsaved changes" : "Saved \u00b7 live on your desktop"
-            color: page.anyDirty ? Theme.bright : Theme.dim
+            text: store.dirty ? "Previewing unsaved changes" : "Saved \u00b7 live on your desktop"
+            color: store.dirty ? Theme.bright : Theme.dim
             font.family: Theme.font
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -585,26 +546,16 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 label: "Revert"
                 icon: "close"
-                enabled: page.anyDirty
-                onClicked: {
-                    if (store.dirty)
-                        store.revert();
-                    if (page.flipDirty)
-                        page.flipDraft = Qt.binding(() => WebcamPrefs.flip180);
-                }
+                enabled: store.dirty
+                onClicked: store.revert()
             }
             HubButton {
                 anchors.verticalCenter: parent.verticalCenter
                 label: "Save"
                 icon: "check"
                 primary: true
-                enabled: page.anyDirty
-                onClicked: {
-                    if (store.dirty)
-                        store.save();
-                    if (page.flipDirty)
-                        WebcamPrefs.flip180 = page.flipDraft;
-                }
+                enabled: store.dirty
+                onClicked: store.save()
             }
         }
     }

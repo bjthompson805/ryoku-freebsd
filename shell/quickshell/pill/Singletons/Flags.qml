@@ -71,10 +71,10 @@ Singleton {
             property bool gameModeTearing: true
             property bool gameModeWifi: true
             property bool gameModeDnd: true
-            // true = logind's own default (lid close suspends). false = the
-            // Lid Sleep quick-toggle's override: ryoku-cmd-lid-sleep blocks
-            // logind's handle-lid-switch and just dpms the screen off/on
-            // instead, see shell.qml's syncLidSleep.
+            // true = the kernel's own lid behaviour. false = the Lid Sleep
+            // quick-toggle's override: ryoku-cmd-lid-sleep sets
+            // hw.acpi.lid_switch_state=NONE and the lid binds just blank the
+            // screen instead, see shell.qml's syncLidSleep.
             property bool lidSleep: true
         }
     }

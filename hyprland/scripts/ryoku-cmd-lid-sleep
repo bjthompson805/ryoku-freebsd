@@ -1,0 +1,42 @@
+#!/bin/sh
+# Lid Sleep quick-toggle's override. Off (start) sets
+# hw.acpi.lid_switch_state=NONE so closing the lid no longer suspends; the
+# screen still blanks through the lid switch binds in modules/binds.lua.
+# On (stop) puts back whatever the sysctl held before the override, so a
+# machine already set to NONE in /etc/sysctl.conf is left as it was.
+#
+#   ryoku-cmd-lid-sleep status    exit 0 while the override holds
+#   ryoku-cmd-lid-sleep start     override: closing the lid does not suspend
+#   ryoku-cmd-lid-sleep stop      restore the saved lid behaviour
+#   ryoku-cmd-lid-sleep toggle
+set -eu
+
+saved="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/lid-switch-state"
+
+priv() {
+  if command -v doas >/dev/null 2>&1; then doas -n /usr/local/libexec/ryoku-priv "$@"
+  else sudo -n /usr/local/libexec/ryoku-priv "$@"; fi
+}
+
+active() { [ -s "$saved" ]; }
+
+start() {
+  active && return 0
+  mkdir -p "$(dirname "$saved")"
+  sysctl -n hw.acpi.lid_switch_state >"$saved"
+  priv lid NONE
+}
+
+stop() {
+  active || return 0
+  priv lid "$(cat "$saved")"
+  rm -f "$saved"
+}
+
+case "${1:-}" in
+  status) active ;;
+  start)  start ;;
+  stop)   stop ;;
+  toggle) if active; then stop; else start; fi ;;
+  *) echo "usage: ryoku-cmd-lid-sleep status|start|stop|toggle" >&2; exit 2 ;;
+esac

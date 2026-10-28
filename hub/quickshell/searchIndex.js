@@ -171,7 +171,6 @@ var entries = [
     { section: "input", tab: null, label: "Swipe distance", highlight: "touchpad_swipe_distance", keywords: ["gesture distance", "swipe threshold", "gesture sensitivity"] },
     { section: "input", tab: null, label: "Repeat rate", highlight: "key_repeat_rate", keywords: ["key repeat rate", "keyboard repeat speed", "autorepeat rate"] },
     { section: "input", tab: null, label: "Repeat delay", highlight: "key_repeat_delay", keywords: ["repeat delay", "key repeat delay", "initial delay", "autorepeat delay"] },
-    { section: "input", tab: null, label: "Flip webcam 180°", highlight: "camera", keywords: ["webcam flip", "camera upside down", "camera orientation", "flip camera", "invert camera"] },
     { section: "connections", tab: "wifi", label: "Wi-Fi", highlight: "wifi_toggle", keywords: ["wifi on off", "wireless toggle", "wlan", "radio toggle", "wifi enable"] },
     { section: "connections", tab: "bluetooth", label: "Bluetooth", highlight: "bluetooth_toggle", keywords: ["bluetooth on off", "adapter toggle", "radio toggle", "wireless toggle", "bt enable"] },
     { section: "connections", tab: "hotspot", label: "Hotspot", highlight: "hotspot_toggle", keywords: ["hotspot on off", "wifi sharing", "tethering", "access point", "share connection"] },

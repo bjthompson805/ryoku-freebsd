@@ -4,8 +4,6 @@ What still assumes Linux. Delete a line when it is done.
 
 ## Dead references to removed Linux-only features
 
-- Webcam kill switch: `pill/Singletons/Webcam.qml`, `pill/popouts/WebcamBridgePopout.qml`, `pill/BarStatus.qml`, `hub/InputPage.qml`, `hub/Singletons/WebcamPrefs.qml`.
-- Tablet mode and lid sleep toggles: `pill/DeckControls.qml`, `pill/shell.qml`, `pill/Singletons/Flags.qml`.
 - Studio record: `pill/Singletons/Recorder.qml`. Stash installer: `pill/Singletons/Stash.qml`.
 - Update channel: `pill/Singletons/Updates.qml`, `shell/ipc/wallpaper.go` (`ryoku update`, `ryoku-leds`).
 - Removed apps and helpers still named in binds, window rules and the hub: ryovm, ryowalls, rashin, `ryoku-monitor`, `ryoku-gpu`, `ryoku-charge-limit` (`hyprland/modules/binds.lua`, `window_rules.lua`, `hub/ShellSettingsPage.qml`, `hub/DisplaysPage.qml`, `launcher/AskPanel.qml`, `launcher/providers/actions/catalog.js`, `pill/Singletons/Battery.qml`).
