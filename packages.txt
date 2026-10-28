@@ -31,6 +31,7 @@ playerctl
 cava
 libnotify
 pipewire
+pipewire-spa-oss-ng
 wireplumber
 upower
 ffmpeg

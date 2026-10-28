@@ -5,6 +5,10 @@ hl.on("hyprland.start", function()
     -- no systemd user manager: hand the session env to dbus so activated
     -- services (the portals) can find the compositor.
     hl.exec_cmd("dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE")
+    -- audio: no user service manager starts PipeWire, so the session does.
+    -- pipewire-spa-oss-ng drives the OSS devices; pipewire-pulse serves the
+    -- apps that speak Pulse (install.sh turns PulseAudio's autospawn off).
+    hl.exec_cmd("pgrep -qx pipewire || { pipewire & sleep 1; wireplumber & pipewire-pulse & }")
     hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
     hl.exec_cmd("ryoku-shell daemon")
     hl.exec_cmd("command -v hypridle >/dev/null 2>&1 && hypridle")
