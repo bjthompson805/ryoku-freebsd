@@ -87,7 +87,7 @@ say "building ryoku-livewall"
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"
 done
-for s in ryoku ryoku-monitor ryoku-leds; do
+for s in ryoku ryoku-session ryoku-monitor ryoku-leds; do
   install -m755 "$repo/system/$s" "$bin/$s"
 done
 # the checkout this install came from is the update channel `ryoku` tracks.
@@ -98,18 +98,6 @@ install -m755 "$repo/apps/fastfetch/ryoku-fastfetch" "$bin/ryoku-fastfetch"
 for s in ryowalls ryoku-summon; do
   install -m755 "$repo/apps/ryowalls/bin/$s" "$bin/$s"
 done
-cat >"$bin/ryoku-session" <<'EOF'
-#!/bin/sh
-# start the Ryoku desktop from a console login. the session's PATH carries
-# ~/.local/bin whatever the login shell is, since Hyprland's autostart and
-# every keybind resolve the ryoku commands from there.
-PATH="$HOME/.local/bin:$PATH"
-export PATH
-# ck-launch-session registers a ConsoleKit session, which polkit needs to
-# authorize the shell's password prompt.
-exec ck-launch-session dbus-run-session Hyprland
-EOF
-chmod 755 "$bin/ryoku-session"
 
 # --- deploy --------------------------------------------------------------------
 hypr_live=0

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Start the Ryoku desktop. The one entry point, whatever starts the session.
+#
+# PATH carries ~/.local/bin whatever the login shell is, since Hyprland's
+# autostart and every keybind resolve the ryoku commands from there.
+# ck-launch-session registers a ConsoleKit session, which polkit needs to
+# authorize the shell's password prompt. start-hyprland is Hyprland's own
+# watchdog launcher.
+PATH="$HOME/.local/bin:$PATH"
+export PATH
+exec ck-launch-session dbus-run-session start-hyprland
