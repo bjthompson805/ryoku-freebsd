@@ -34,6 +34,12 @@ if command -v doas >/dev/null 2>&1; then as_root=doas; else as_root=sudo; fi
 
 # --- system: packages, services, groups --------------------------------------
 if [ $system -eq 1 ]; then
+  # ask for the password once, up front, so a missing tty fails here and not
+  # halfway through.
+  if [ "$as_root" = sudo ] && ! sudo -v; then
+    echo "install.sh: sudo needs a password; run this from a terminal" >&2
+    exit 1
+  fi
   say "installing packages"
   # shellcheck disable=SC2046
   $as_root pkg install -y $(grep -Ev '^[[:space:]]*(#|$)' "$repo/packages.txt")
