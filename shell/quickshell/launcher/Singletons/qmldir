@@ -1,0 +1,16 @@
+singleton Theme Theme.qml
+singleton Config Config.qml
+singleton LauncherConfig LauncherConfig.qml
+singleton Wallust Wallust.qml
+singleton Motion Motion.qml
+singleton Metrics Metrics.qml
+singleton Frecency Frecency.qml
+singleton Dispatcher Dispatcher.qml
+singleton Weather Weather.qml
+WeatherCore WeatherCore.qml
+singleton Spectrum Spectrum.qml
+singleton Players Players.qml
+singleton Radio Radio.qml
+singleton Performance Performance.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

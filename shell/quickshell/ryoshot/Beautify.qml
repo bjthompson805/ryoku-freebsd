@@ -1,0 +1,831 @@
+import QtQuick
+import QtQuick.Effects
+import QtQuick.Controls as QQC
+import Quickshell
+import Quickshell.Io
+
+// Beautify: a sharing-first image editor for a capture. Frosted, textured chrome
+// (the launcher's grainy look: a warm translucent surface over a square-grid
+// weave), a live canvas, and a right panel of the right control per job -- a
+// background thumbnail grid (preset gradients, solid, custom gradient, image,
+// transparent), colour swatches, ratio + social-format pills, a shadow-direction
+// dial -- with sliders only for the continuous frame values. The card layers are
+// kept separate (a blurred directional shadow, a mask-rounded image, a coloured
+// border) so rounding, border colour and shadow direction each work on their own.
+// Exports at full resolution through the same wl-copy / save path as the shot.
+Item {
+    id: beautify
+
+    property string srcPath: ""
+    property string bgImagePath: ""
+
+    signal copyRequested(string path)
+    signal saveRequested(string path)
+    signal pickImageRequested()
+    signal closeRequested()
+
+    readonly property string exportTmp: "/tmp/ryoshot-beautified.png"
+
+    readonly property color vermilion: "#e2342a"
+    readonly property color bright: "#f5efe4"
+    readonly property color idle: "#c7bfae"
+    readonly property color dim: "#8f8378"
+    readonly property color panelBg: Qt.rgba(30 / 255, 25 / 255, 18 / 255, 0.86)
+    readonly property color fieldBg: Qt.rgba(1, 1, 1, 0.05)
+    readonly property color hair: Qt.rgba(243 / 255, 237 / 255, 225 / 255, 0.12)
+
+    // ---- state ----
+    property string bgKind: "preset"     // preset | solid | gradient | image | none
+    property int bgPreset: 6
+    property color bgSolid: "#2b3350"
+    property color bgGradA: "#4facfe"
+    property color bgGradB: "#00c6a7"
+    property real bgGradAngle: 135
+    property real padding: 90
+    property real roundness: 24
+    property real borderW: 0
+    property color borderColor: "#ffffff"
+    property real shadowStrength: 45
+    property real shadowBlur: 55
+    property real shadowDist: 20
+    property real shadowAngle: 90
+    property real adjBright: 0
+    property real adjContrast: 0
+    property real adjSat: 0
+    property string ratioKey: "auto"
+    property bool watermark: false
+    readonly property string userName: Quickshell.env("USER") || "user"
+    // the desktop brand seal, user-overridable via ~/.config/ryoku/brand.json
+    // (Ryoku Settings -> Shell -> Global). the stamped watermark and the editor
+    // seals follow it; the user@host handle beside the watermark stays as-is.
+    // empty/absent markText falls back to the 力 default, so this never seeds.
+    readonly property string mark: brandAdapter.markText.length > 0 ? brandAdapter.markText : "\u529b"
+    property bool composeOnly: false
+    property string composeMode: ""
+    property bool hd: false
+    property bool busy: false
+
+    readonly property var presets: [
+        { "name": "Ocean",    "a": "#4facfe", "b": "#00c6a7", "ang": 135 },
+        { "name": "Sunset",   "a": "#f6543e", "b": "#f7b733", "ang": 135 },
+        { "name": "Plum",     "a": "#7b4397", "b": "#dc2430", "ang": 135 },
+        { "name": "Mint",     "a": "#11998e", "b": "#38ef7d", "ang": 135 },
+        { "name": "Blush",    "a": "#ee9ca7", "b": "#ffdde1", "ang": 135 },
+        { "name": "Slate",    "a": "#334155", "b": "#0f172a", "ang": 135 },
+        { "name": "Ember",    "a": "#e2342a", "b": "#14120f", "ang": 135 },
+        { "name": "Citrus",   "a": "#00c3ff", "b": "#ffff1c", "ang": 135 },
+        { "name": "Peach",    "a": "#ffecd2", "b": "#fcb69f", "ang": 135 },
+        { "name": "Pine",     "a": "#3e6868", "b": "#0f1514", "ang": 135 },
+        { "name": "Rose",     "a": "#ff6a88", "b": "#ff99ac", "ang": 135 },
+        { "name": "Midnight", "a": "#141e30", "b": "#243b55", "ang": 135 }
+    ]
+    readonly property var palette: [
+        "#ffffff", "#0e0d0b", "#e2342a", "#f3701e", "#f7b733", "#38ef7d",
+        "#4facfe", "#2b6cb0", "#7b4397", "#ee9ca7", "#3e6868", "#c7bfae"
+    ]
+    readonly property var ratioRow: [
+        { "k": "auto", "l": "Auto", "t": "Fit the canvas to the capture" },
+        { "k": "1:1", "l": "1:1", "t": "Square" },
+        { "k": "4:3", "l": "4:3", "t": "Standard landscape" },
+        { "k": "3:2", "l": "3:2", "t": "Photo landscape" },
+        { "k": "16:9", "l": "16:9", "t": "Widescreen" },
+        { "k": "9:16", "l": "9:16", "t": "Portrait" }
+    ]
+    readonly property var socialRow: [
+        { "k": "x", "l": "X", "t": "X post (16:9)" },
+        { "k": "instagram", "l": "Instagram", "t": "Instagram post (1:1)" },
+        { "k": "story", "l": "Story", "t": "Instagram or TikTok story (9:16)" },
+        { "k": "linkedin", "l": "LinkedIn", "t": "LinkedIn post (1.91:1)" },
+        { "k": "youtube", "l": "YouTube", "t": "YouTube thumbnail (16:9)" },
+        { "k": "pinterest", "l": "Pinterest", "t": "Pinterest pin (2:3)" }
+    ]
+    readonly property var ratioMap: ({ "auto": 0, "1:1": 1, "4:3": 1.3333, "3:2": 1.5, "16:9": 1.7778, "9:16": 0.5625, "x": 1.7778, "instagram": 1, "story": 0.5625, "linkedin": 1.91, "youtube": 1.7778, "pinterest": 0.6667 })
+
+    readonly property bool hasDefault: cfg.hasDefault
+    readonly property var looks: [
+        { "name": "Ember",  "cfg": { "bgKind": "preset", "bgPreset": 6, "padding": 90, "roundness": 24, "borderW": 0, "shadowStrength": 45, "shadowBlur": 55, "shadowDist": 20, "shadowAngle": 90 } },
+        { "name": "Ocean",  "cfg": { "bgKind": "preset", "bgPreset": 0, "padding": 96, "roundness": 26, "borderW": 0, "shadowStrength": 42, "shadowBlur": 60, "shadowDist": 22, "shadowAngle": 100 } },
+        { "name": "Sunset", "cfg": { "bgKind": "preset", "bgPreset": 1, "padding": 88, "roundness": 22, "borderW": 0, "shadowStrength": 50, "shadowBlur": 50, "shadowDist": 24, "shadowAngle": 110 } },
+        { "name": "Mono",   "cfg": { "bgKind": "solid", "bgSolid": "#14120f", "padding": 72, "roundness": 16, "borderW": 0, "shadowStrength": 32, "shadowBlur": 42, "shadowDist": 16, "shadowAngle": 90 } },
+        { "name": "Paper",  "cfg": { "bgKind": "solid", "bgSolid": "#f5efe4", "padding": 64, "roundness": 12, "borderW": 1, "borderColor": "#dcd3c2", "shadowStrength": 18, "shadowBlur": 30, "shadowDist": 10, "shadowAngle": 90 } },
+        { "name": "Bare",   "cfg": { "bgKind": "none", "padding": 0, "roundness": 0, "borderW": 0, "shadowStrength": 0 } }
+    ]
+
+    // ---- resolved background ----
+    readonly property bool bgIsGradient: bgKind === "preset" || bgKind === "gradient"
+    readonly property color bgA: bgKind === "preset" ? presets[bgPreset].a : bgGradA
+    readonly property color bgB: bgKind === "preset" ? presets[bgPreset].b : bgGradB
+    readonly property real bgAngle: bgKind === "preset" ? presets[bgPreset].ang : bgGradAngle
+
+    // ---- geometry (full resolution) ----
+    readonly property real natW: img.sourceSize.width > 0 ? img.sourceSize.width : 800
+    readonly property real natH: img.sourceSize.height > 0 ? img.sourceSize.height : 500
+    readonly property real minW: natW + 2 * padding
+    readonly property real minH: natH + 2 * padding
+    readonly property real ratioV: ratioMap[ratioKey] !== undefined ? ratioMap[ratioKey] : 0
+    readonly property real fullW: ratioV <= 0 ? minW : (ratioV >= minW / minH ? minH * ratioV : minW)
+    readonly property real fullH: ratioV <= 0 ? minH : (ratioV >= minW / minH ? minH : minW / ratioV)
+
+    // grab the composition to `path`. Qt's PNG writer takes seconds on a frame
+    // this size and blocks the UI, so an opaque frame is grabbed as BMP and magick
+    // encodes it out of process. BMP has no alpha channel, so a None or image
+    // background, which can leave pixels transparent, keeps the PNG grab.
+    // HD (opt-in) reroutes through the GPU upscaler: waifu2x doubles the
+    // resolution with no denoise so text edges stay crisp. A missing tool or an
+    // already-large shot falls back to the plain grab.
+    readonly property string rawTmp: "/tmp/ryoshot-beautified-raw.png"
+    readonly property string rawBmp: "/tmp/ryoshot-beautified-raw.bmp"
+    readonly property bool opaqueFrame: bgKind === "preset" || bgKind === "solid" || bgKind === "gradient"
+    function exportStage(path, cb) {
+        beautify.busy = true;
+        function done(ok) { beautify.busy = false; if (cb) cb(ok); }
+        var fast = beautify.opaqueFrame;
+        var target = fast ? beautify.rawBmp : (beautify.hd ? beautify.rawTmp : path);
+        var scheduled = stage.grabToImage(function (r) {
+            var ok = false;
+            try { ok = r ? r.saveToFile(target) : false; }
+            catch (e) { console.log("ryoshot: beautify grab failed: " + e); }
+            if (!ok) { done(false); return; }
+            if (fast || beautify.hd) encodeProc.finish(target, path, beautify.hd, done);
+            else done(true);
+        }, Qt.size(Math.round(beautify.fullW), Math.round(beautify.fullH)));
+        if (!scheduled) done(false);
+    }
+    // waifu2x reads PNG but not BMP, so a BMP grab gets a quick level-1 PNG for
+    // it; the final encode is level 5, matching the toolbar shot.
+    Process {
+        id: encodeProc
+        property var cb: null
+        function finish(src, dst, hd, cb_) {
+            encodeProc.cb = cb_;
+            command = ["sh", "-c",
+                'src="$1"; dst="$2"; m=/usr/share/waifu2x-ncnn-vulkan/models-cunet; rm -f "$dst"; ' +
+                'if [ "$3" = 1 ] && command -v waifu2x-ncnn-vulkan >/dev/null 2>&1; then ' +
+                'h=$(identify -format "%h" "$src" 2>/dev/null | head -1); ' +
+                'if [ "${h:-0}" -gt 0 ] && [ "${h:-0}" -lt 2000 ]; then ' +
+                'in="$src"; case "$src" in *.png) ;; *) in="${src%.*}.png"; magick "$src" -quality 10 "$in" || in="" ;; esac; ' +
+                '[ -n "$in" ] && waifu2x-ncnn-vulkan -i "$in" -o "$dst" -s 2 -n 0 -m "$m" >/dev/null 2>&1 && [ -s "$dst" ] && exit 0; ' +
+                'fi; fi; ' +
+                'case "$src" in *.png) cp -f "$src" "$dst" ;; *) magick "$src" -quality 50 "$dst" ;; esac',
+                "sh", src, dst, hd ? "1" : "0"];
+            running = true;
+        }
+        onExited: (code, status) => {
+            console.log("ryoshot: beautify encode exit " + code);
+            var f = encodeProc.cb;
+            encodeProc.cb = null;
+            if (f) f(code === 0);
+        }
+    }
+
+    // ---- named looks + persisted default ----
+    // applyLook only writes the keys a look defines, so partial looks (e.g. Bare)
+    // leave everything else alone.
+    function applyLook(c) {
+        for (var k in c)
+            beautify[k] = c[k];
+    }
+    function saveDefault() {
+        cfg.hasDefault = true;
+        cfg.bgKind = beautify.bgKind; cfg.bgPreset = beautify.bgPreset;
+        cfg.bgSolid = beautify.bgSolid.toString(); cfg.bgGradA = beautify.bgGradA.toString(); cfg.bgGradB = beautify.bgGradB.toString(); cfg.bgGradAngle = beautify.bgGradAngle;
+        cfg.padding = beautify.padding; cfg.roundness = beautify.roundness; cfg.borderW = beautify.borderW; cfg.borderColor = beautify.borderColor.toString();
+        cfg.shadowStrength = beautify.shadowStrength; cfg.shadowBlur = beautify.shadowBlur; cfg.shadowDist = beautify.shadowDist; cfg.shadowAngle = beautify.shadowAngle;
+        cfg.adjBright = beautify.adjBright; cfg.adjContrast = beautify.adjContrast; cfg.adjSat = beautify.adjSat;
+        cfg.ratioKey = beautify.ratioKey; cfg.watermark = beautify.watermark; cfg.hd = beautify.hd;
+        cfgFile.writeAdapter();
+    }
+    function loadDefault() {
+        beautify.bgKind = cfg.bgKind; beautify.bgPreset = cfg.bgPreset;
+        beautify.bgSolid = cfg.bgSolid; beautify.bgGradA = cfg.bgGradA; beautify.bgGradB = cfg.bgGradB; beautify.bgGradAngle = cfg.bgGradAngle;
+        beautify.padding = cfg.padding; beautify.roundness = cfg.roundness; beautify.borderW = cfg.borderW; beautify.borderColor = cfg.borderColor;
+        beautify.shadowStrength = cfg.shadowStrength; beautify.shadowBlur = cfg.shadowBlur; beautify.shadowDist = cfg.shadowDist; beautify.shadowAngle = cfg.shadowAngle;
+        beautify.adjBright = cfg.adjBright; beautify.adjContrast = cfg.adjContrast; beautify.adjSat = cfg.adjSat;
+        beautify.ratioKey = cfg.ratioKey; beautify.watermark = cfg.watermark; beautify.hd = cfg.hd;
+    }
+    // reset strips all styling back to the raw capture.
+    function resetDefault() {
+        applyLook({ "bgKind": "none", "padding": 0, "roundness": 0, "borderW": 0, "shadowStrength": 0 });
+    }
+    // each new beautify session starts from the saved default, so shots come out
+    // consistent without re-tuning.
+    onVisibleChanged: {
+        if (visible && cfg.hasDefault) beautify.loadDefault();
+        if (visible && beautify.composeOnly) composeTimer.restart();
+    }
+    // headless "bake the default and export" path: used when Copy/Save is pressed
+    // in the toolbar with a saved default, so the shot exports styled without the
+    // editor ever opening.
+    property int composeTries: 0
+    function composeExport() {
+        if (img.status !== Image.Ready) {
+            if (beautify.composeTries++ < 12) composeTimer.restart();
+            return;
+        }
+        beautify.composeTries = 0;
+        beautify.exportStage(beautify.exportTmp, function (ok) {
+            if (!ok) { beautify.closeRequested(); return; }
+            if (beautify.composeMode === "save") beautify.saveRequested(beautify.exportTmp);
+            else beautify.copyRequested(beautify.exportTmp);
+        });
+    }
+    Timer { id: composeTimer; interval: 220; onTriggered: beautify.composeExport() }
+
+    FileView {
+        id: cfgFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/ryoshot-beautify.json"
+        blockLoading: true
+        printErrors: false
+        JsonAdapter {
+            id: cfg
+            property bool hasDefault: false
+            property string bgKind: "preset"
+            property int bgPreset: 6
+            property string bgSolid: "#2b3350"
+            property string bgGradA: "#4facfe"
+            property string bgGradB: "#00c6a7"
+            property real bgGradAngle: 135
+            property real padding: 90
+            property real roundness: 24
+            property real borderW: 0
+            property string borderColor: "#ffffff"
+            property real shadowStrength: 45
+            property real shadowBlur: 55
+            property real shadowDist: 20
+            property real shadowAngle: 90
+            property real adjBright: 0
+            property real adjContrast: 0
+            property real adjSat: 0
+            property string ratioKey: "auto"
+            property bool watermark: false
+            property bool hd: false
+        }
+    }
+
+    // brand identity master (shared with the shell and the Hub's
+    // Shell -> Global editor). watched so a Settings change retunes the live
+    // editor. only markText is read here; the shell owns seeding and the other
+    // keys, so this reads gracefully with a 力 default and never writes back.
+    FileView {
+        id: brandFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/ryoku/brand.json"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        JsonAdapter { id: brandAdapter; property string markText: "力" }
+    }
+
+    // ============================ frosted backdrop ============================
+    // takes hover so the editing toolbar underneath does not light up or show
+    // its tooltips through the editor.
+    MouseArea { anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#1b1610" }
+            GradientStop { position: 1.0; color: "#100d09" }
+        }
+    }
+    Canvas {
+        anchors.fill: parent
+        opacity: 0.5
+        onPaint: {
+            var ctx = getContext("2d");
+            ctx.clearRect(0, 0, width, height);
+            ctx.strokeStyle = "rgba(245, 239, 228, 0.04)";
+            ctx.lineWidth = 1;
+            var step = 34;
+            for (var x = 0; x <= width; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+            for (var y = 0; y <= height; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+        }
+        Component.onCompleted: requestPaint()
+    }
+
+    // ============================ top bar ============================
+    Rectangle {
+        id: topbar
+        visible: !beautify.composeOnly
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 56
+        color: beautify.panelBg
+        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: beautify.hair }
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: 24
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 11
+            Text { anchors.verticalCenter: parent.verticalCenter; text: beautify.mark; color: beautify.vermilion; font.family: "Noto Sans CJK JP"; font.pixelSize: 21; font.weight: Font.DemiBold }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "Beautify"; color: beautify.bright; font.family: "Space Grotesk"; font.pixelSize: 16; font.weight: Font.DemiBold }
+            Text { anchors.verticalCenter: parent.verticalCenter; text: "ready to share"; color: beautify.dim; font.family: "Space Grotesk"; font.pixelSize: 12 }
+        }
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
+            TopBtn { label: "Back"; tip: "Back to the editor"; keys: "Esc"; onTapped: beautify.closeRequested() }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Copy"; tip: "Copy the styled image to the clipboard"; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.copyRequested(beautify.exportTmp); }); } }
+            TopBtn { label: beautify.busy ? "Working\u2026" : "Save image"; tip: "Save the styled image to a file"; accent: true; onTapped: { if (!beautify.busy) beautify.exportStage(beautify.exportTmp, function (ok) { if (ok) beautify.saveRequested(beautify.exportTmp); }); } }
+        }
+    }
+
+    // ============================ right panel ============================
+    Rectangle {
+        id: panel
+        visible: !beautify.composeOnly
+        anchors.right: parent.right
+        anchors.top: topbar.bottom
+        anchors.bottom: parent.bottom
+        width: 360
+        color: beautify.panelBg
+        Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: beautify.hair }
+
+        Flickable {
+            id: flick
+            anchors.fill: parent
+            anchors.leftMargin: 22
+            anchors.rightMargin: 18
+            anchors.topMargin: 20
+            anchors.bottomMargin: 20
+            contentHeight: pcol.height
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            // native flick handles the mouse wheel and touchpad scroll; the panel
+            // controls set preventStealing so a drag on a slider adjusts it instead
+            // of scrolling.
+            QQC.ScrollBar.vertical: QQC.ScrollBar {
+                id: sb
+                policy: QQC.ScrollBar.AsNeeded
+                width: 7
+                contentItem: Rectangle {
+                    implicitWidth: 4
+                    radius: 2
+                    color: beautify.idle
+                    opacity: sb.pressed ? 0.9 : (sb.hovered ? 0.7 : 0.4)
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                }
+            }
+
+            Column {
+                id: pcol
+                width: flick.width - 14
+                spacing: 24
+
+                // ---------- PRESETS ----------
+                Group {
+                    title: "PRESETS"
+                    Flow {
+                        width: parent.width
+                        spacing: 7
+                        Repeater {
+                            model: beautify.looks
+                            Pill {
+                                required property var modelData
+                                label: modelData.name
+                                tip: "Apply the " + modelData.name + " look"
+                                onTapped: beautify.applyLook(modelData.cfg)
+                            }
+                        }
+                    }
+                    Row {
+                        width: parent.width
+                        spacing: 8
+                        TopBtn {
+                            label: beautify.hasDefault ? "\u2605 Update default" : "\u2605 Set as default"
+                            tip: "Start every shot with this style, and apply it to toolbar Copy and Save"
+                            onTapped: beautify.saveDefault()
+                        }
+                        TopBtn {
+                            label: "Reset"
+                            tip: "Strip all styling back to the raw capture"
+                            onTapped: beautify.resetDefault()
+                        }
+                    }
+                }
+
+                // ---------- BACKGROUND ----------
+                Group {
+                    title: "BACKGROUND"
+                    Grid {
+                        width: parent.width
+                        columns: 6
+                        columnSpacing: 8
+                        rowSpacing: 8
+                        Repeater {
+                            model: beautify.presets
+                            Rectangle {
+                                id: cell
+                                required property int index
+                                required property var modelData
+                                width: (parent.width - 5 * 8) / 6
+                                height: 34
+                                radius: 8
+                                readonly property bool sel: beautify.bgKind === "preset" && beautify.bgPreset === cell.index
+                                border.color: cell.sel ? "#ffffff" : beautify.hair
+                                border.width: cell.sel ? 2 : 1
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: cell.modelData.a }
+                                    GradientStop { position: 1.0; color: cell.modelData.b }
+                                }
+                                MouseArea { id: cellMa; anchors.fill: parent; hoverEnabled: true; onClicked: { beautify.bgKind = "preset"; beautify.bgPreset = cell.index; } }
+                                Tooltip { text: cell.modelData.name; shown: cellMa.containsMouse }
+                            }
+                        }
+                    }
+                    Row {
+                        width: parent.width
+                        spacing: 8
+                        BgType { label: "Solid"; tip: "Solid colour background"; on: beautify.bgKind === "solid"; onTapped: beautify.bgKind = "solid" }
+                        BgType { label: "Gradient"; tip: "Custom two-colour gradient"; on: beautify.bgKind === "gradient"; onTapped: beautify.bgKind = "gradient" }
+                        BgType { label: "Image"; tip: "Choose an image for the background"; on: beautify.bgKind === "image"; onTapped: { beautify.bgKind = "image"; beautify.pickImageRequested(); } }
+                        BgType { label: "None"; tip: "Transparent background"; on: beautify.bgKind === "none"; onTapped: beautify.bgKind = "none" }
+                    }
+                    ColorRow { visible: beautify.bgKind === "solid"; width: parent.width; current: beautify.bgSolid; onPicked: (c) => beautify.bgSolid = c }
+                    Column {
+                        visible: beautify.bgKind === "gradient"
+                        width: parent.width
+                        spacing: 10
+                        ColorRow { width: parent.width; current: beautify.bgGradA; onPicked: (c) => beautify.bgGradA = c }
+                        ColorRow { width: parent.width; current: beautify.bgGradB; onPicked: (c) => beautify.bgGradB = c }
+                        Slider { width: parent.width; label: "Angle"; from: 0; to: 360; suffix: "\u00b0"; value: beautify.bgGradAngle; onMoved: (v) => beautify.bgGradAngle = v }
+                    }
+                    Text {
+                        visible: beautify.bgKind === "image"
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: beautify.bgImagePath ? beautify.bgImagePath : "Click Image again to choose a file\u2026"
+                        color: beautify.dim
+                        font.family: "Space Grotesk"
+                        font.pixelSize: 11
+                        elide: Text.ElideMiddle
+                    }
+                }
+
+                // ---------- FRAME ----------
+                Group {
+                    title: "FRAME"
+                    Slider { width: parent.width; label: "Padding"; from: 0; to: 240; value: beautify.padding; onMoved: (v) => beautify.padding = v }
+                    Slider { width: parent.width; label: "Roundness"; from: 0; to: 80; value: beautify.roundness; onMoved: (v) => beautify.roundness = v }
+                    Slider { width: parent.width; label: "Border"; from: 0; to: 16; value: beautify.borderW; onMoved: (v) => beautify.borderW = v }
+                    ColorRow { visible: beautify.borderW > 0; width: parent.width; current: beautify.borderColor; onPicked: (c) => beautify.borderColor = c }
+                }
+
+                // ---------- SHADOW ----------
+                Group {
+                    title: "SHADOW"
+                    Row {
+                        width: parent.width
+                        spacing: 16
+                        Column {
+                            width: parent.width - 56 - 16
+                            spacing: 16
+                            Slider { width: parent.width; label: "Strength"; from: 0; to: 100; suffix: "%"; value: beautify.shadowStrength; onMoved: (v) => beautify.shadowStrength = v }
+                            Slider { width: parent.width; label: "Blur"; from: 0; to: 100; value: beautify.shadowBlur; onMoved: (v) => beautify.shadowBlur = v }
+                            Slider { width: parent.width; label: "Distance"; from: 0; to: 80; value: beautify.shadowDist; onMoved: (v) => beautify.shadowDist = v }
+                        }
+                        Dial {
+                            anchors.verticalCenter: parent.verticalCenter
+                            label: "Angle"
+                            angle: beautify.shadowAngle
+                            onMoved: (a) => beautify.shadowAngle = a
+                        }
+                    }
+                }
+
+                // ---------- ADJUST ----------
+                Group {
+                    title: "ADJUST"
+                    Slider { width: parent.width; label: "Brightness"; bipolar: true; from: -100; to: 100; value: beautify.adjBright; onMoved: (v) => beautify.adjBright = v }
+                    Slider { width: parent.width; label: "Contrast"; bipolar: true; from: -100; to: 100; value: beautify.adjContrast; onMoved: (v) => beautify.adjContrast = v }
+                    Slider { width: parent.width; label: "Saturation"; bipolar: true; from: -100; to: 100; value: beautify.adjSat; onMoved: (v) => beautify.adjSat = v }
+                }
+
+                // ---------- RATIO / SIZE ----------
+                Group {
+                    title: "RATIO / SIZE"
+                    Flow {
+                        width: parent.width
+                        spacing: 6
+                        Repeater {
+                            model: beautify.ratioRow
+                            Pill { label: modelData.l; tip: modelData.t; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
+                        }
+                    }
+                    Flow {
+                        width: parent.width
+                        spacing: 6
+                        Repeater {
+                            model: beautify.socialRow
+                            Pill { label: modelData.l; tip: modelData.t; on: beautify.ratioKey === modelData.k; onTapped: beautify.ratioKey = modelData.k }
+                        }
+                    }
+                }
+
+                // ---------- SHARE ----------
+                Group {
+                    title: "SHARE"
+                    ToggleRow { width: parent.width; label: "Watermark (" + beautify.mark + " handle)"; tip: "Stamp your handle in the corner"; on: beautify.watermark; onToggled: (v) => beautify.watermark = v }
+                    ToggleRow { width: parent.width; label: "HD \u00d72 (AI upscale)"; tip: "Double the resolution on export (slower)"; on: beautify.hd; onToggled: (v) => beautify.hd = v }
+                }
+            }
+        }
+    }
+
+    // ============================ canvas ============================
+    Item {
+        id: canvasArea
+        anchors.left: parent.left
+        anchors.right: panel.left
+        anchors.top: topbar.bottom
+        anchors.bottom: parent.bottom
+
+        // transparency checker, shown behind the stage only when bg is None
+        Rectangle {
+            visible: beautify.bgKind === "none"
+            width: stage.width * stage.scale
+            height: stage.height * stage.scale
+            anchors.centerIn: stage
+            color: "#ffffff"
+            Canvas {
+                anchors.fill: parent
+                onPaint: {
+                    var ctx = getContext("2d");
+                    var s = 12;
+                    ctx.fillStyle = "#c8c8c8";
+                    for (var y = 0; y < height; y += s)
+                        for (var x = 0; x < width; x += s)
+                            if (((x / s) + (y / s)) % 2 === 0) ctx.fillRect(x, y, s, s);
+                }
+                Component.onCompleted: requestPaint()
+            }
+        }
+
+        Item {
+            id: stage
+            width: beautify.fullW
+            height: beautify.fullH
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: -12
+            scale: Math.min((canvasArea.width - 96) / beautify.fullW, (canvasArea.height - 120) / beautify.fullH, 1)
+            transformOrigin: Item.Center
+
+            // background
+            Item {
+                anchors.fill: parent
+                visible: beautify.bgKind !== "none"
+                clip: true
+                Rectangle {
+                    visible: beautify.bgIsGradient
+                    anchors.centerIn: parent
+                    width: Math.max(parent.width, parent.height) * 1.5
+                    height: width
+                    rotation: beautify.bgAngle - 90
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: beautify.bgA }
+                        GradientStop { position: 1.0; color: beautify.bgB }
+                    }
+                }
+                Rectangle { visible: beautify.bgKind === "solid"; anchors.fill: parent; color: beautify.bgSolid }
+                Image { visible: beautify.bgKind === "image" && beautify.bgImagePath !== ""; anchors.fill: parent; source: beautify.bgImagePath ? ("file://" + beautify.bgImagePath) : ""; fillMode: Image.PreserveAspectCrop; cache: false }
+            }
+
+            // the framed capture
+            Item {
+                id: card
+                anchors.centerIn: parent
+                width: beautify.natW
+                height: beautify.natH
+
+                // directional blurred shadow, cast from the rounded card shape
+                Rectangle {
+                    width: parent.width; height: parent.height
+                    x: Math.cos(beautify.shadowAngle * Math.PI / 180) * beautify.shadowDist
+                    y: Math.sin(beautify.shadowAngle * Math.PI / 180) * beautify.shadowDist
+                    radius: beautify.roundness
+                    color: "#000000"
+                    visible: beautify.shadowStrength > 0
+                    opacity: beautify.shadowStrength / 100
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        blurEnabled: true
+                        blur: 1.0
+                        blurMax: Math.round(beautify.shadowBlur * 0.64)
+                        autoPaddingEnabled: true
+                    }
+                }
+
+                // the screenshot, rounded via a mask (no shadow/padding here, so
+                // the mask stays aligned), plus the colour adjust
+                Image {
+                    id: img
+                    anchors.fill: parent
+                    source: beautify.srcPath ? ("file://" + beautify.srcPath) : ""
+                    cache: false
+                    fillMode: Image.Stretch
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        maskEnabled: beautify.roundness > 0
+                        maskSource: maskRect
+                        brightness: beautify.adjBright / 100
+                        contrast: beautify.adjContrast / 100
+                        saturation: beautify.adjSat / 100
+                    }
+                }
+                Rectangle {
+                    id: maskRect
+                    anchors.fill: parent
+                    radius: beautify.roundness
+                    visible: false
+                    layer.enabled: true
+                }
+                // coloured border, tracing the same rounded shape
+                Rectangle {
+                    anchors.fill: parent
+                    visible: beautify.borderW > 0
+                    color: "transparent"
+                    radius: beautify.roundness
+                    border.width: beautify.borderW
+                    border.color: beautify.borderColor
+                }
+            }
+
+            // watermark
+            Row {
+                id: wmark
+                visible: beautify.watermark
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: Math.max(16, beautify.padding * 0.32)
+                spacing: wmark.fs * 0.55
+                readonly property real fs: Math.max(15, beautify.fullW * 0.016)
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: beautify.mark
+                    color: beautify.vermilion
+                    font.family: "Noto Sans CJK JP"
+                    font.pixelSize: wmark.fs * 1.4
+                    font.weight: Font.Bold
+                    style: Text.Raised
+                    styleColor: Qt.rgba(0, 0, 0, 0.5)
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "<b>" + beautify.userName + "</b><font color=\"#f5b53f\">@RyokuArch</font>"
+                    textFormat: Text.StyledText
+                    color: "#ffffff"
+                    font.family: "Space Grotesk"
+                    font.pixelSize: wmark.fs
+                    font.weight: Font.DemiBold
+                    style: Text.Raised
+                    styleColor: Qt.rgba(0, 0, 0, 0.45)
+                }
+            }
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 16
+            text: Math.round(beautify.fullW) + " \u00d7 " + Math.round(beautify.fullH) + "  \u00b7  " + Math.round(stage.scale * 100) + "%"
+            color: beautify.dim
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: 12
+        }
+    }
+
+    // ============================ inline widgets ============================
+    component Group: Column {
+        id: grp
+        width: parent ? parent.width : 0
+        property string title: ""
+        default property alias content: body.data
+        spacing: 14
+        Item {
+            width: grp.width
+            height: 14
+            Text {
+                id: gh
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: grp.title
+                color: beautify.dim
+                font.family: "Space Grotesk"
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.letterSpacing: 2
+            }
+            Rectangle { anchors.left: gh.right; anchors.leftMargin: 12; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; height: 1; color: beautify.hair }
+        }
+        Column { id: body; width: grp.width; spacing: 14 }
+    }
+
+    component TopBtn: Rectangle {
+        id: tbn
+        property string label: ""
+        property string tip: ""
+        property string keys: ""
+        property bool accent: false
+        signal tapped()
+        implicitWidth: tl.implicitWidth + 32
+        implicitHeight: 36
+        radius: 9
+        color: tbn.accent ? (tbnMa.containsMouse ? Qt.lighter(beautify.vermilion, 1.12) : beautify.vermilion) : (tbnMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
+        border.width: tbn.accent ? 0 : 1
+        border.color: beautify.hair
+        Text { id: tl; anchors.centerIn: parent; text: tbn.label; color: tbn.accent ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.DemiBold }
+        MouseArea { id: tbnMa; anchors.fill: parent; hoverEnabled: true; onClicked: tbn.tapped() }
+        Tooltip { text: tbn.tip; keys: tbn.keys; shown: tbnMa.containsMouse }
+    }
+
+    component BgType: Rectangle {
+        id: bgt
+        property string label: ""
+        property string tip: ""
+        property bool on: false
+        signal tapped()
+        width: (parent.width - 3 * 8) / 4
+        height: 30
+        radius: 8
+        color: bgt.on ? beautify.vermilion : (btMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
+        Text { anchors.centerIn: parent; text: bgt.label; color: bgt.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: bgt.on ? Font.DemiBold : Font.Medium }
+        MouseArea { id: btMa; anchors.fill: parent; hoverEnabled: true; onClicked: bgt.tapped() }
+        Tooltip { text: bgt.tip; shown: btMa.containsMouse }
+    }
+
+    component Pill: Rectangle {
+        id: pill
+        property string label: ""
+        property string tip: ""
+        property bool on: false
+        signal tapped()
+        implicitWidth: pl.implicitWidth + 22
+        height: 28
+        radius: 8
+        color: pill.on ? beautify.vermilion : (plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : beautify.fieldBg)
+        Text { id: pl; anchors.centerIn: parent; text: pill.label; color: pill.on ? "#ffffff" : beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 12; font.weight: pill.on ? Font.DemiBold : Font.Medium }
+        MouseArea { id: plMa; anchors.fill: parent; hoverEnabled: true; onClicked: pill.tapped() }
+        Tooltip { text: pill.tip; shown: plMa.containsMouse }
+    }
+
+    component ColorRow: Flow {
+        id: cr
+        property color current: "#ffffff"
+        signal picked(color c)
+        spacing: 7
+        Repeater {
+            model: beautify.palette
+            Rectangle {
+                id: sw
+                required property var modelData
+                width: 22
+                height: 22
+                radius: 6
+                color: sw.modelData
+                readonly property bool sel: Qt.colorEqual(cr.current, sw.modelData)
+                border.color: sw.sel ? "#ffffff" : beautify.hair
+                border.width: sw.sel ? 2 : 1
+                scale: crMa.containsMouse ? 1.12 : 1
+                Behavior on scale { NumberAnimation { duration: 80 } }
+                MouseArea { id: crMa; anchors.fill: parent; hoverEnabled: true; onClicked: cr.picked(sw.modelData) }
+                Tooltip { text: String(sw.modelData).toUpperCase(); shown: crMa.containsMouse }
+            }
+        }
+    }
+
+    component ToggleRow: Item {
+        id: tr
+        property string label: ""
+        property string tip: ""
+        property bool on: false
+        signal toggled(bool v)
+        width: parent.width
+        height: 28
+        Text { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: tr.label; color: beautify.idle; font.family: "Space Grotesk"; font.pixelSize: 13; font.weight: Font.Medium }
+        Rectangle {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 42
+            height: 24
+            radius: 12
+            color: tr.on ? beautify.vermilion : beautify.fieldBg
+            border.width: 1
+            border.color: tr.on ? beautify.vermilion : beautify.hair
+            Rectangle {
+                width: 18
+                height: 18
+                radius: 9
+                y: 3
+                x: tr.on ? parent.width - width - 3 : 3
+                color: "#ffffff"
+                Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+            }
+            MouseArea { id: trMa; anchors.fill: parent; hoverEnabled: true; onClicked: tr.toggled(!tr.on) }
+            Tooltip { text: tr.tip; shown: trMa.containsMouse }
+        }
+    }
+}

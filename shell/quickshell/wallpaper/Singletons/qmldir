@@ -1,0 +1,8 @@
+singleton Theme Theme.qml
+singleton Motion Motion.qml
+singleton Wallust Wallust.qml
+singleton Config Config.qml
+singleton Colors Colors.qml
+singleton Walls Walls.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

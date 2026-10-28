@@ -1,0 +1,62 @@
+# pkg(8) packages install.sh installs. one per line.
+
+# session
+hyprland
+xwayland
+seatd
+dbus
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hypridle
+hyprpicker
+hyprsunset
+gnome-keyring
+
+# shell runtime
+quickshell
+qt6-declarative
+qt6-wayland
+qt6-svg
+qt6-multimedia
+qt6-5compat
+qt6ct
+wallust
+awww
+cliphist
+wl-clipboard
+grim
+slurp
+playerctl
+cava
+libnotify
+pipewire
+wireplumber
+upower
+ffmpeg
+ImageMagick7
+jq
+curl
+bash
+flock
+setsid
+xdg-utils
+kitty
+
+# build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall)
+go
+cmake
+ninja
+pkgconf
+qt6-shadertools
+wayland-protocols
+
+# look
+bibata-cursor-theme
+adwaita-icon-theme
+papirus-icon-theme
+gnome-themes-extra
+noto-basic
+noto-emoji
+noto-jp
+jetbrains-mono
+nerd-fonts-jetbrainsmono

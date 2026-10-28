@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Ryoku logo mark: the kanji 力 (chikara / ryoku, "power / strength")
+       in the Greek Noir accent orange. Transparent background variant
+       intended for use on light or dark canvases such as the project README.
+       Outlined to a path (not <text>): Qt's SVG renderer (used by Quickshell's
+       icon provider) ignores dominant-baseline and renders text glyphs
+       baseline-up, clipped into the top of the frame; a path centers and
+       sizes identically in every renderer. -->
+  <path fill="#F25623" transform="matrix(0.97253 0 0 0.97253 15.142 -17.254)" d="M 200.14 80.860016 L 200.14 165.28 L 75.82 165.28 L 75.82 227.86002 L 197.62 227.86002 C 190.06 298.41998 161.5 381.16 61.96 431.56 C 77.08 442.47998 100.179985 466.42 110.26 481.53998 C 226.18 418.54 256.41998 315.22 263.14 227.86002 L 367.72 227.86002 C 361.84 340.84 353.86 393.75998 341.68 405.94003 C 335.8 411.4 330.75998 413.08002 322.36 413.08002 C 310.6 413.08002 287.08 413.08002 261.46 410.97998 C 273.21997 428.62 282.03998 456.34 282.88 474.4 C 308.08 475.24 334.12 475.24 350.5 472.29996 C 370.24 469.36 383.68 463.89996 397.53998 445.84003 C 416.44 422.74002 424.41998 358.47998 432.39996 193.42 C 433.24 185.44002 433.65997 165.28 433.65997 165.28 L 265.24 165.28 L 265.24 80.860016 Z"/>
+</svg>

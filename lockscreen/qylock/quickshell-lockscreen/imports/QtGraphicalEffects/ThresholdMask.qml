@@ -1,0 +1,1 @@
+/usr/local/lib/qt6/qml/Qt5Compat/GraphicalEffects/ThresholdMask.qml

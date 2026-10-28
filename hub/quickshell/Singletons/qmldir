@@ -1,0 +1,13 @@
+singleton Theme Theme.qml
+singleton SysInfo SysInfo.qml
+singleton Wallust Wallust.qml
+singleton Config Config.qml
+singleton HubHighlight HubHighlight.qml
+singleton Devices Devices.qml
+singleton WebcamPrefs WebcamPrefs.qml
+singleton BluetoothLink BluetoothLink.qml
+singleton WifiLink WifiLink.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml
+singleton Vibrance Vibrance.qml
+VibranceCore VibranceCore.qml

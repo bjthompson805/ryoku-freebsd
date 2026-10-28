@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Ryoku Hub
+GenericName=Ryoku Settings
+Comment=Configure the Ryoku shell, Hyprland and system settings
+Exec=flock -n -o /tmp/ryoku-hub.lock env QS_APP_ID=ryoku-hub qs -c hub
+Terminal=false
+Icon=ryoku-hub
+Categories=Settings;
+Keywords=ryoku;settings;preferences;hub;hyprland;shell;

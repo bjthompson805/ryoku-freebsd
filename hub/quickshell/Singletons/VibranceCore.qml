@@ -1,0 +1,1 @@
+../../../shared/quickshell/VibranceCore.qml

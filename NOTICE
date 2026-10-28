@@ -1,0 +1,31 @@
+Ryoku FreeBSD
+
+Ryoku FreeBSD is distributed under the GNU General Public License version 3.
+It is a FreeBSD port of the Ryoku desktop from Ryoku Arch:
+
+  https://github.com/neur0map/ryoku-arch
+
+Ryoku Arch began as an Omarchy-derived Arch environment, created by David
+Heinemeier Hansson and contributors. The original project is available at:
+
+  https://github.com/basecamp/omarchy
+
+The MIT License and original copyright notice for the Omarchy-derived base are
+preserved in LICENSES/MIT-Omarchy-Ryoku-core.txt.
+
+The Ryoku shell is an original, custom shell. Its frame-blob rendering (the
+Ryoku.Blobs QML/C++ plugin) and parts of its animation and motion curves are
+adapted from the Caelestia shell:
+
+  https://github.com/caelestia-dots/shell
+
+Caelestia is released under the GNU General Public License version 3; the adapted
+portions remain under that license, compatible with Ryoku's GPL-3.
+
+Portions of the Ryoku display configuration UI are adapted from
+DankMaterialShell, created by Avenge Media LLC and contributors:
+
+  https://github.com/AvengeMedia/DankMaterialShell
+
+DankMaterialShell is released under the MIT License. Copyright (c) 2025
+Avenge Media LLC.

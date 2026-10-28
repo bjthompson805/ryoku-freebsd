@@ -1,0 +1,73 @@
+#!/bin/sh
+
+# Keep-Awake. FreeBSD has no logind inhibitor, so idle is held off by owning
+# hypridle: while caffeine is on, hypridle is replaced by one running a config
+# without the sleep listener (keepAwakeScreen=false: the screen still dims,
+# locks, and blanks) or by none at all (keepAwakeScreen on or unset). The
+# request is persisted so a fresh login can pick it back up.
+
+set -eu
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
+state_file="$state_dir/caffeine.enabled"
+flags_file="$state_dir/flags.json"
+idle_conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf"
+nosleep_conf="${XDG_RUNTIME_DIR:-/tmp}/ryoku-hypridle-nosleep.conf"
+mark="${XDG_RUNTIME_DIR:-/tmp}/ryoku-caffeine.held"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ryoku-cmd-caffeine status    # exit 0 when idle is being held off
+  ryoku-cmd-caffeine start     # persist the request and hold
+  ryoku-cmd-caffeine stop      # clear the request and release
+  ryoku-cmd-caffeine restore   # re-hold iff a request is persisted
+  ryoku-cmd-caffeine hold      # temporary hold without changing the request
+  ryoku-cmd-caffeine release   # drop a temporary hold (keeps a persisted request)
+  ryoku-cmd-caffeine toggle
+USAGE
+}
+
+keep_screen() {
+  [ "$(jq -r 'if has("keepAwakeScreen") then .keepAwakeScreen else true end' "$flags_file" 2>/dev/null)" != false ]
+}
+
+requested() { grep -Fxq enabled "$state_file" 2>/dev/null; }
+
+restart_idle() {
+  pkill -x hypridle 2>/dev/null || true
+  command -v hypridle >/dev/null 2>&1 || return 0
+  daemon -f hypridle "$@"
+}
+
+hold() {
+  if keep_screen; then
+    pkill -x hypridle 2>/dev/null || true
+  else
+    awk '/^listener/ { buf = $0; inl = 1; next }
+         inl { buf = buf "\n" $0; if ($0 ~ /^}/) { if (buf !~ /acpiconf/) print buf; inl = 0 } ; next }
+         { print }' "$idle_conf" >"$nosleep_conf"
+    restart_idle -c "$nosleep_conf"
+  fi
+  : >"$mark"
+}
+
+release() {
+  rm -f "$mark"
+  restart_idle
+}
+
+start() { mkdir -p "$state_dir"; echo enabled >"$state_file"; hold; }
+stop() { rm -f "$state_file"; release; }
+
+case "${1:-}" in
+  status)  [ -e "$mark" ] ;;
+  start)   start ;;
+  stop)    stop ;;
+  restore) if requested; then start; fi ;;
+  hold)    hold ;;
+  release) if requested; then hold; else release; fi ;;
+  toggle)  if requested || [ -e "$mark" ]; then stop; else start; fi ;;
+  -h|--help|"") usage ;;
+  *) echo "ryoku-cmd-caffeine: unknown action: $1" >&2; usage >&2; exit 2 ;;
+esac

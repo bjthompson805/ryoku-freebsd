@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# 力 game mode = one reversible toggle. competitive-play tune on start, back
+# to normal on stop. compositor via `hyprctl eval` (no root). wifi
+# power-save flipped by the privileged ryoku-wifi-powersave through pkexec
+# (polkit pre-auths it, no password, toggle stays one click). dnd is the
+# shell's job (Flags.dnd) and bridges in here, same as ryoku-cmd-caffeine.
+#
+#   status   exit 0 = on
+#   start    apply, persist (idempotent, safe to re-run)
+#   stop     restore, clear
+#   reapply  redo the tune after an option changed (no-op when off)
+#   rearm    re-assert the tune after something else reloaded Hyprland, silently
+#            (no-op when off)
+#   toggle
+#
+# each part of the tune is an option in flags.json (gameModeVisuals,
+# gameModeTearing, gameModeWifi), written by the sidebar's Game Mode panel. a
+# missing file or key means on, so out of the box it is the full tune.
+#
+# revert = exact. compositor changes are runtime eval overrides; `hyprctl
+# reload` rereads Lua and clears them, so nothing to track. the wifi helper
+# saves + restores the prior power-save state. `start` is safe to re-run
+# after a relogin (Hyprland comes back fresh from Lua, request is still on
+# disk).
+set -u
+
+state_dir="${RYOKU_STATE_PATH:-${XDG_STATE_HOME:-$HOME/.local/state}/ryoku}"
+state_file="${RYOKU_GAMEMODE_STATE_FILE:-$state_dir/game-mode.enabled}"
+flags_file="${RYOKU_FLAGS_FILE:-$state_dir/flags.json}"
+# in the runtime dir so a fresh login (wifi back at its default) re-applies.
+wifi_mark="${RYOKU_GAMEMODE_WIFI_MARK:-${XDG_RUNTIME_DIR:-/tmp}/ryoku-game-mode-wifi}"
+
+is_on() { [[ -f $state_file ]]; }
+
+opt_on() {
+  [[ $(jq -r --arg k "$1" 'if has($k) then .[$k] else true end' "$flags_file" 2>/dev/null) != false ]]
+}
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a Ryoku "$1" "$2" || true
+}
+
+# ── compositor ────────────────────────────────────────────────────────────────
+# Ryoku's Hyprland runs the Lua config parser, so `hyprctl keyword` is
+# rejected. `hyprctl eval` runs Lua against the same `hl` API the config
+# uses (same no-flash path ryoku-hub takes). kill present-time cost (blur,
+# shadow, rounding, opacity blending, animations) and flip to the
+# low-latency path: immediate window rule for tearing + fullscreen-only VRR.
+# per the Hyprland wiki tearing only kicks in on a fullscreen sole window,
+# which is exactly the game case.
+hypr_fast() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  local cfg="" rule=""
+  if opt_on gameModeTearing; then
+    cfg+='general = { allow_tearing = true }, misc = { vrr = 2 }, '
+    rule='hl.window_rule({ name = "game-mode-immediate", match = { class = ".*" }, immediate = true })'
+  fi
+  if opt_on gameModeVisuals; then
+    cfg+='decoration = { rounding = 0, active_opacity = 1.0, inactive_opacity = 1.0, blur = { enabled = false }, shadow = { enabled = false } }, animations = { enabled = false }, '
+  fi
+  [[ -n $cfg ]] || return 0
+  hyprctl eval "hl.config({ $cfg })
+$rule" >/dev/null 2>&1 || true
+}
+
+# reload rereads Lua and blows away every eval override above.
+hypr_restore() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  hyprctl reload >/dev/null 2>&1 || true
+}
+
+# ── wifi (latency only, never a cap) ──────────────────────────────────────────
+# 802.11 power-save off = radio stays fully awake. kills the periodic
+# micro-sleeps that spike latency on an idle link. does NOT shape, cap, or
+# drop the link, so throughput is untouched. the privileged helper does it
+# via iw with no reconnect and saves + restores the prior state. no wifi or
+# no helper = no-op.
+has_wifi() {
+  local w
+  for w in "${RYOKU_NET_SYSFS:-/sys/class/net}"/*/wireless; do [[ -e $w ]] && return 0; done
+  return 1
+}
+
+wifi_set() {  # off | on
+  local helper
+  helper="$(command -v ryoku-wifi-powersave)" || return 0
+  has_wifi || return 0
+  pkexec "$helper" "$1" >/dev/null 2>&1 || true
+}
+
+# the helper's `off` re-saves the current state, so a second run would record
+# "off" as the value to restore. the mark keeps it to one save per session.
+wifi_apply() {
+  if opt_on gameModeWifi; then
+    [[ -e $wifi_mark ]] && return 0
+    wifi_set off
+    : >"$wifi_mark" 2>/dev/null || true
+  else
+    wifi_release
+  fi
+}
+
+# option on with no mark = a session started before the mark existed, still
+# owed its restore.
+wifi_release() {
+  if [[ -e $wifi_mark ]] || opt_on gameModeWifi; then wifi_set on; fi
+  rm -f "$wifi_mark" 2>/dev/null || true
+}
+
+start() {
+  mkdir -p "$state_dir" 2>/dev/null || true
+  hypr_fast
+  wifi_apply
+  printf 'enabled\n' >"$state_file" 2>/dev/null || true
+  notify "力 Game Mode" "On - $(summary)"
+}
+
+stop() {
+  hypr_restore
+  wifi_release
+  rm -f "$state_file" 2>/dev/null || true
+  notify "力 Game Mode" "Off - desktop restored"
+}
+
+reapply() {
+  is_on || return 0
+  hypr_restore
+  rearm
+}
+
+# for callers that just reloaded Hyprland themselves (wallpaper repaint, Hub):
+# no restore reload of our own and no notification, the tune was already on.
+rearm() {
+  is_on || return 0
+  hypr_fast
+  wifi_apply
+}
+
+summary() {
+  local parts=()
+  opt_on gameModeVisuals && parts+=("effects off")
+  opt_on gameModeTearing && parts+=("tearing allowed")
+  opt_on gameModeWifi && has_wifi && parts+=("WiFi power-save off")
+  ((${#parts[@]})) || { echo "no changes selected"; return; }
+  printf '%s' "${parts[0]}"
+  printf ', %s' "${parts[@]:1}"
+  echo
+}
+
+case "${1:-toggle}" in
+  status)     is_on ;;
+  on | start) start ;;
+  off | stop) stop ;;
+  reapply)    reapply ;;
+  rearm)      rearm ;;
+  toggle)     if is_on; then stop; else start; fi ;;
+  *)
+    echo "usage: ryoku-cmd-game-mode [status | start | stop | reapply | rearm | toggle]" >&2
+    exit 1
+    ;;
+esac
