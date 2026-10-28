@@ -94,6 +94,7 @@ done
 mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
 printf '%s\n' "$repo" >"${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/repo"
 install -m755 "$repo/shell/quickshell/plugins/ryoku-plugins-place" "$bin/ryoku-plugins-place"
+install -m755 "$repo/apps/fastfetch/ryoku-fastfetch" "$bin/ryoku-fastfetch"
 for s in ryowalls ryoku-summon; do
   install -m755 "$repo/apps/ryowalls/bin/$s" "$bin/$s"
 done
@@ -166,6 +167,12 @@ cp -R "$repo/shell/wallust/." "$cfg/wallust/"
 cp "$repo/shell/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
 cp "$repo/apps/kitty/kitty.conf" "$cfg/kitty/kitty.conf"
 [ -e "$cfg/kitty/current-theme.conf" ] || cp "$repo/apps/kitty/current-theme.conf" "$cfg/kitty/"
+# fish: config.fish is Ryoku's, user.fish (sourced last) stays yours.
+mkdir -p "$cfg/fish" "$cfg/fastfetch"
+cp "$repo/apps/fish/config.fish" "$cfg/fish/config.fish"
+cp "$repo/apps/starship/starship.toml" "$cfg/starship.toml"
+cp "$repo/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
+cp "$repo/assets/brand/fastfetch-emblem.png" "$cfg/fastfetch/fastfetch-emblem.png"
 
 walls="$HOME/Pictures/Wallpapers"
 if [ -z "$(ls -A "$walls" 2>/dev/null)" ]; then

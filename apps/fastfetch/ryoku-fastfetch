@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Ryoku-branded fastfetch. The emblem is rendered natively by fastfetch's
+# kitty-direct logo (image left, dossier right). fastfetch auto-enables "pipe
+# mode" when it thinks stdout isn't a real TTY, which SILENTLY disables image
+# logos and falls back to ASCII -- so in kitty we force `--pipe false` to keep
+# the image. Outside kitty: chafa if present, else fastfetch's default.
+#
+# Bounded to 8s so a slow probe can never freeze the shell greeting: a stuck
+# process makes /proc enumeration block, and WM/DE detection scans it. This
+# used to be `timeout 8 fastfetch ...`, but `timeout` stays alive as
+# fastfetch's parent to enforce the deadline, and fastfetch's Shell module
+# walks the process tree looking for the invoking shell -- it doesn't
+# recognize "timeout" as a wrapper to skip past, so it reported "timeout"
+# instead of "fish". A background watchdog + `exec` gives the same bound
+# without leaving a foreign process in fastfetch's parent chain.
+set -uo pipefail
+
+( sleep 8; kill -9 $$ 2>/dev/null ) & disown
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/config.jsonc"
+if [ ! -f "$config" ]; then
+  exec fastfetch "$@"
+fi
+
+if [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM:-}" = "xterm-kitty" ]; then
+  exec fastfetch --config "$config" --pipe false "$@"
+elif command -v chafa >/dev/null 2>&1; then
+  exec fastfetch --config "$config" --logo-type chafa "$@"
+else
+  exec fastfetch --config "$config" --logo-type none "$@"
+fi

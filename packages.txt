@@ -44,6 +44,11 @@ setsid
 xdg-utils
 kitty
 
+# terminal: fish with the starship prompt and the branded fastfetch readout
+fish
+starship
+fastfetch
+
 # build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall)
 go
 cmake

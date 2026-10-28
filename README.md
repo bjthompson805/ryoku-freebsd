@@ -41,7 +41,8 @@ boot environment, pulls this checkout, upgrades packages and re-runs
 | `shared/quickshell/` | QML shared by the shell and the hub. |
 | `hub/` | Ryoku Settings: QML front end plus the `ryoku-hub` Go backend. |
 | `lockscreen/` | The qylock in-session lock. |
-| `apps/kitty/` | Terminal config. |
+| `apps/kitty/`, `apps/fish/`, `apps/starship/`, `apps/fastfetch/` | The terminal: kitty, fish, the starship prompt and the branded fastfetch readout. |
+| `apps/pulse/` | Keeps PulseAudio from autospawning, since PipeWire serves Pulse apps. |
 | `apps/ryowalls/` | ryowalls, the wallpaper browser (`Super+Shift+W`). |
 | `system/` | Machine helpers: `ryoku` (updates), `ryoku-monitor`, `ryoku-leds`, and `ryoku-priv`, the one root entry point. |
 | `assets/` | Brand marks and the default wallpapers. |
