@@ -85,6 +85,9 @@ for s in ryoku-monitor ryoku-leds; do
   install -m755 "$repo/system/$s" "$bin/$s"
 done
 install -m755 "$repo/shell/quickshell/plugins/ryoku-plugins-place" "$bin/ryoku-plugins-place"
+for s in ryowalls ryoku-summon; do
+  install -m755 "$repo/apps/ryowalls/bin/$s" "$bin/$s"
+done
 cat >"$bin/ryoku-session" <<'EOF'
 #!/bin/sh
 # start the Ryoku desktop from a console login.
@@ -100,9 +103,10 @@ if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then h
 # reloads a half-copied config. -L turns the shared/ symlinks into real files.
 qstage="$cfg/quickshell.staging.$$"
 rm -rf "$qstage"
-mkdir -p "$qstage/hub"
+mkdir -p "$qstage/hub" "$qstage/ryowalls"
 cp -RL "$repo/shell/quickshell/." "$qstage/"
 cp -RL "$repo/hub/quickshell/." "$qstage/hub/"
+cp -RL "$repo/apps/ryowalls/quickshell/." "$qstage/ryowalls/"
 [ $hypr_live -eq 1 ] && [ $reload -eq 1 ] && "$bin/ryoku-shell" quit >/dev/null 2>&1 || true
 rm -rf "$cfg/quickshell"
 mv "$qstage" "$cfg/quickshell"
@@ -157,6 +161,8 @@ fi
 mkdir -p "$data/applications" "$data/icons/hicolor/scalable/apps"
 install -m644 "$repo/hub/hub.desktop" "$data/applications/ryoku-hub.desktop"
 install -m644 "$repo/assets/brand/logo-mark.svg" "$data/icons/hicolor/scalable/apps/ryoku-hub.svg"
+install -m644 "$repo/apps/ryowalls/ryowalls.desktop" "$data/applications/ryowalls.desktop"
+install -m644 "$repo/apps/ryowalls/quickshell/logo.svg" "$data/icons/hicolor/scalable/apps/ryowalls.svg"
 
 # fonts the shell draws with that pkg does not carry.
 fonts="$data/fonts/ryoku"

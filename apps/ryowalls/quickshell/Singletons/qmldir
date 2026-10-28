@@ -1,0 +1,4 @@
+singleton Theme Theme.qml
+singleton Wallhaven Wallhaven.qml
+singleton Spawn Spawn.qml
+SpawnCore SpawnCore.qml

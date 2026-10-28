@@ -6,7 +6,6 @@ What still assumes Linux. Delete a line when it is done.
 
 - Stash installer: `pill/Singletons/Stash.qml`.
 - Update channel: `pill/Singletons/Updates.qml`, `shell/ipc/wallpaper.go` (`ryoku update`, `ryoku-leds`).
-- ryowalls (the wallpaper browser), still bound to `Super+Shift+W` in `binds.lua` with a rule in `window_rules.lua`.
 - Battery charge limit: `pill/Singletons/Battery.qml` calls `ryoku-charge-limit`, which used Linux sysfs + udev. Hidden while the helper is absent.
 
 ## Linux tools with a FreeBSD equivalent
