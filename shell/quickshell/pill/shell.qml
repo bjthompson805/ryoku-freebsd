@@ -332,15 +332,6 @@ ShellRoot {
         }
     }
 
-    // open the Hub on its Updates section. the update island is an entry
-    // point to the surface Super+, opens; binds.lua holds the canonical
-    // launcher, so we mirror its flock guard to avoid spawning a second
-    // Hub instance.
-    function openUpdates() {
-        Spawn.spawn(["sh", "-c",
-            "ryoku-hub config set section updates; flock -n -o /tmp/ryoku-hub.lock qs -c hub"]);
-    }
-
     IpcHandler {
         target: "pill"
         function mixer(mon: string): void { root.togglePopout(mon, "mixer"); }

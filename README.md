@@ -13,14 +13,18 @@ On a FreeBSD 15 machine with a working GPU driver (see the Handbook's
     cd ~/code/ryoku-freebsd
     ./install.sh
 
-It installs `packages.txt` with pkg, enables `dbus` and `seatd`, adds you to
-`video` and `operator`, builds the Go programs and the QML plugin, and deploys
-the configs into `~/.config`. Your existing `~/.config/hypr` is backed up first.
-Re-run it after pulling to update. Then, from a console login:
+It installs `packages.txt` with pkg, enables `dbus`, `seatd` and `webcamd`,
+adds you to `video`, `operator` and `webcamd`, builds the Go programs and the
+QML plugin, and deploys the configs into `~/.config`. Your existing
+`~/.config/hypr` is backed up first. Then, from a console login:
 
     ryoku-session
 
 Make sure `~/.local/bin` is on your `PATH`.
+
+To update, use Ryoku Settings > Updates, or run `ryoku update`: it creates a
+boot environment, pulls this checkout, upgrades packages and re-runs
+`install.sh`. `ryoku rollback <be>` boots back into the pre-update one.
 
 ## Layout
 
@@ -36,6 +40,8 @@ Make sure `~/.local/bin` is on your `PATH`.
 | `hub/` | Ryoku Settings: QML front end plus the `ryoku-hub` Go backend. |
 | `lockscreen/` | The qylock in-session lock. |
 | `apps/kitty/` | Terminal config. |
+| `apps/ryowalls/` | ryowalls, the wallpaper browser (`Super+Shift+W`). |
+| `system/` | Machine helpers: `ryoku` (updates), `ryoku-monitor`, `ryoku-leds`, and `ryoku-priv`, the one root entry point. |
 | `assets/` | Brand marks and the default wallpapers. |
 
 ## Develop

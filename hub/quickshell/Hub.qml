@@ -8,7 +8,7 @@ import "Singletons"
 // area. no query -> selected section. with a query -> global results across
 // every section. data + persisted state come from the ryoku-hub Go backend.
 // most sections edit the live Hyprland (lua) config through that backend;
-// Shell tunes the desktop shell.
+// Shell tunes the desktop shell; Updates tracks the channel and packages.
 Rectangle {
     id: hub
 
@@ -36,6 +36,7 @@ Rectangle {
         { "key": "keybinds",    "name": "Keybinds",        "icon": "keyboard", "group": "System" },
         { "key": "connections", "name": "Connections",     "icon": "wifi",     "group": "System" },
         { "key": "recording",   "name": "Recording",       "icon": "play",     "group": "System" },
+        { "key": "updates",     "name": "Updates",         "icon": "download", "pinned": "bottom" },
         { "key": "credits",     "name": "Credits",         "icon": "heart",    "pinned": "bottom" },
         { "key": "general",     "name": "General",         "icon": "clock",    "group": "Desktop" },
         { "key": "appearance",  "name": "Appearance",      "icon": "palette",  "group": "Desktop" },
@@ -73,6 +74,7 @@ Rectangle {
         "launcher":    { "title": "App Launcher", "subtitle": "Tune the command palette you open with Super+Space: its roundness, how much the desktop behind it blurs, the weather units, and the home card's backdrop and greeting." },
         "connections": { "title": "Connections", "subtitle": "Wi-Fi networks, Bluetooth devices, and your hotspot, all in one place." },
         "recording":   { "title": "Recording", "subtitle": "Screen recording quality: framerate, definition, codec, and the hardware encoder Ryoku uses for your machine. Start and stop from the bar's screen-capture Tools." },
+        "updates":     { "title": "Updates", "subtitle": "New Ryoku commits and package upgrades for this machine." },
         "credits":     { "title": "Credits", "subtitle": "The projects, communities, and people Ryoku is built on, and the alpha and beta testers who keep it honest." },
         "store":       { "title": "Store", "subtitle": "Browse and install shell plugins for the Ryoku desktop." },
         "addons":      { "title": "Add-ons", "subtitle": "Your installed plugins. Open one to change its settings, enable it, or remove it." },
@@ -87,7 +89,7 @@ Rectangle {
     }
 
     // The section's group name, for the page eyebrow ("SYSTEM", "DESKTOP", …).
-    // Pinned sections (Profile, Credits) have no group; label them "Settings".
+    // Pinned sections (Profile, Updates, Credits) have no group; label them "Settings".
     function groupFor(s) {
         for (var i = 0; i < hub.sectionDefs.length; i++)
             if (hub.sectionDefs[i].key === s)
@@ -314,6 +316,7 @@ Rectangle {
         case "environment": return environmentComp;
         case "widgets": return widgetsComp;
         case "launcher": return launcherComp;
+        case "updates": return updatesComp;
         case "credits": return creditsComp;
         case "connections": return connectionsComp;
         case "store": return storeComp;
@@ -341,6 +344,7 @@ Rectangle {
     Component { id: shellComp; ShellSettingsPage { initialTab: hub.targetTab } }
     Component { id: widgetsComp; WidgetsPage { initialTab: hub.targetTab; onNavigate: (s, h) => hub.go(s, "", h) } }
     Component { id: launcherComp; LauncherPage {} }
+    Component { id: updatesComp; UpdatesPage {} }
     Component { id: creditsComp; CreditsPage {} }
     Component { id: storeComp; StorePage {} }
     Component { id: addonsComp; AddonsPage {} }

@@ -180,7 +180,7 @@ var entries = [
     { section: "recording", tab: null, label: "Quality", highlight: "quality_quality", keywords: ["video quality", "bitrate", "recording quality", "encode quality"] },
     { section: "recording", tab: null, label: "Codec", highlight: "quality_codec", keywords: ["video codec", "h264 hevc av1", "compression format", "encoding format"] },
     { section: "recording", tab: null, label: "Encoder", highlight: "encoder_encoder", keywords: ["hardware encoder", "gpu cpu encoding", "video encoder", "encoding backend"] },
-
+    { section: "updates", tab: null, label: "Automatic update checks", highlight: "auto_update_checks", keywords: ["update interval", "auto update", "check frequency", "schedule", "update schedule", "hourly", "daily", "weekly", "auto check", "pkg upgrade"] },
 
     { section: "appearance", tab: "look", label: "Corner radius", highlight: "look_shape_radius", keywords: ["radius", "rounding", "corner", "roundness", "window corners"] },
     { section: "appearance", tab: "look", label: "Corner softness", highlight: "look_shape_softness", keywords: ["rounding power", "corner curve", "squircle", "corner shape", "softness"] },

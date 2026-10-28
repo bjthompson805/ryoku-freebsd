@@ -4,7 +4,7 @@ import QtQuick.Controls as QQC
 import "Singletons"
 
 // nav rail = three bands. fixed top (pinned "top": Profile, showcase), scrolling
-// middle (the grouped sections), fixed foot (pinned "bottom": Credits, so its
+// middle (the grouped sections), fixed foot (pinned "bottom": Updates, so its
 // badge stays visible). middle groups are drawers that animate open/closed.
 // headers borrow the Profile dossier look (brand dot, mono label, hairline
 // between groups). the group holding the current section is always open (brighter
@@ -139,7 +139,7 @@ Rectangle {
             anchors.fill: parent
             icon: pin.section.icon
             label: pin.section.name
-            badge: 0
+            badge: pin.section.key === "updates" ? (Updates.available ? Updates.behind : 0) : 0
             selected: rail.current === pin.section.key
             onClicked: rail.navigate(pin.section.key)
         }
@@ -325,7 +325,7 @@ Rectangle {
         BandRule { visible: rail.pinnedTop.length > 0; height: rail.pinnedTop.length > 0 ? rail.pinnedGap : 0 }
     }
 
-    // ── fixed foot band: pinned "bottom" items (Credits) ────────────────────
+    // ── fixed foot band: pinned "bottom" items (Updates) ────────────────────
     Column {
         id: bottomBand
         anchors.left: parent.left

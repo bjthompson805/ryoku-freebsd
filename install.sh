@@ -81,9 +81,12 @@ say "building ryoku-livewall"
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"
 done
-for s in ryoku-monitor ryoku-leds; do
+for s in ryoku ryoku-monitor ryoku-leds; do
   install -m755 "$repo/system/$s" "$bin/$s"
 done
+# the checkout this install came from is the update channel `ryoku` tracks.
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/ryoku"
+printf '%s\n' "$repo" >"${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/repo"
 install -m755 "$repo/shell/quickshell/plugins/ryoku-plugins-place" "$bin/ryoku-plugins-place"
 for s in ryowalls ryoku-summon; do
   install -m755 "$repo/apps/ryowalls/bin/$s" "$bin/$s"

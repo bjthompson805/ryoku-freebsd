@@ -2,10 +2,9 @@
 
 What still assumes Linux. Delete a line when it is done.
 
-## Dead references to removed Linux-only features
+## To port, needs a FreeBSD design
 
-- Update channel: `pill/Singletons/Updates.qml`, `shell/ipc/wallpaper.go` (`ryoku update`, `ryoku-leds`).
-- Battery charge limit: `pill/Singletons/Battery.qml` calls `ryoku-charge-limit`, which used Linux sysfs + udev. Hidden while the helper is absent.
+- Battery charge limit: `pill/Singletons/Battery.qml` calls `ryoku-charge-limit`, which used Linux sysfs + udev. FreeBSD has no general charge-threshold interface, so this needs a per-vendor backend (start with the ASUS laptop it runs on). The UI hides itself while the helper is absent.
 
 ## Linux tools with a FreeBSD equivalent
 
@@ -29,3 +28,5 @@ What still assumes Linux. Delete a line when it is done.
 - Every QML surface under Quickshell 0.3.2 / Qt 6.11.
 - qylock PAM auth against FreeBSD's `/etc/pam.d`.
 - A real wf-recorder capture: VAAPI fallback timing, region crop, and pipewire-pulse audio device names.
+- `ryoku status` / `ryoku update` end to end (their jq paths need jq installed), and a rollback into the pre-update boot environment.
+- `ryoku-monitor` and `ryoku-leds` against real outputs and OpenRGB devices.
