@@ -18,9 +18,11 @@ end
 
 require("modules.env")
 require("keyboard")
+-- written at runtime by ryoku-monitor, rewritten on a hotplug.
 optional("monitors")
--- hand-written overrides: ~/.config/hypr/monitors_user.lua, never shipped.
--- loaded after monitors.lua so a pinned panel wins. see monitors_user.lua.example.
+-- hand-written overrides: ~/.config/hypr/monitors_user.lua, never shipped,
+-- never touched by ryoku-monitor. loaded after monitors.lua so a pinned panel
+-- wins. see monitors_user.lua.example.
 optional("monitors_user")
 require("modules.displays")
 require("modules.input")

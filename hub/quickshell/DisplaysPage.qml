@@ -386,7 +386,7 @@ Item {
                     visible: page.listFailed
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
-                    text: "The ryoku-monitor helper looks out of date. Run 'ryoku deploy' (or update the desktop) and retry."
+                    text: "The ryoku-monitor helper looks out of date. Re-run ./install.sh from the ryoku-freebsd checkout and retry."
                     color: Theme.faint
                     font.family: Theme.font
                     font.pixelSize: 12

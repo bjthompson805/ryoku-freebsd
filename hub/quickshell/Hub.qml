@@ -172,8 +172,8 @@ Rectangle {
     // or a Hub-owned JSON); view = Ryoku's shipped defaults, read-only, since an
     // update replaces them. settings.lua is deliberately NOT shown: it is
     // generated from your Hub choices (hypr.json) and rewritten on every Save,
-    // so it is never a file to open or edit. GPU is view-only (ryoku-gpu writes
-    // it). editTip/viewTip explain each button in a hover tooltip.
+    // so it is never a file to open or edit. editTip/viewTip explain each button
+    // in a hover tooltip.
     function configFor(s) {
         var base = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config");
         var hypr = base + "/hypr";

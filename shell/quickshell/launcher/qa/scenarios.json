@@ -740,35 +740,6 @@
       ]
     },
     {
-      "id": "ask-mode-ui",
-      "name": "Backslash enters Rashin ask mode with RASHIN chip",
-      "covers": "ask mode routing + panel",
-      "steps": [
-        "show",
-        "type \\what is ryoku",
-        "sleep 0.8"
-      ],
-      "asserts": [
-        ".askMode == true",
-        ".modeLabel == \"RASHIN\""
-      ],
-      "screenshot": true
-    },
-    {
-      "id": "ask-resume-list",
-      "name": "Bare backslash shows the ask panel in resume/recall state",
-      "covers": "ask resume list",
-      "steps": [
-        "show",
-        "type \\",
-        "sleep 0.8"
-      ],
-      "asserts": [
-        ".askMode == true"
-      ],
-      "screenshot": true
-    },
-    {
       "id": "rest-dashboard",
       "name": "Rest state shows the dashboard (clock, greeting, weather glance)",
       "covers": "RestDashboard visual",

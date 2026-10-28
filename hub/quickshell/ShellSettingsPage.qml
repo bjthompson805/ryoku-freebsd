@@ -750,7 +750,7 @@ Item {
                     Text {
                         width: Math.min(parent.width, 620)
                         wrapMode: Text.WordWrap
-                        text: "Swaps the \u529b mark and \"Ryoku\" name across the desktop shell: the bar, launcher, and the rest of the chrome. Ryoku's own apps (this one, ryowalls, ryovm) keep their brand. For an image: a square SVG (crisp at any size) or a PNG at least 256\u00d7256, transparent background. A single-colour mark tints to your accent; turn tint off to show a full-colour logo as-is. It renders as small as ~14px, so keep it simple. Leave the image empty to use the text mark."
+                        text: "Swaps the \u529b mark and \"Ryoku\" name across the desktop shell: the bar, launcher, and the rest of the chrome. Ryoku Settings keeps its own brand. For an image: a square SVG (crisp at any size) or a PNG at least 256\u00d7256, transparent background. A single-colour mark tints to your accent; turn tint off to show a full-colour logo as-is. It renders as small as ~14px, so keep it simple. Leave the image empty to use the text mark."
                         color: Theme.dim
                         font.family: Theme.font
                         font.pixelSize: 12

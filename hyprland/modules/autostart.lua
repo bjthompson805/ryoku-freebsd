@@ -5,8 +5,10 @@ hl.on("hyprland.start", function()
     -- no systemd user manager: hand the session env to dbus so activated
     -- services (the portals) can find the compositor.
     hl.exec_cmd("dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE HYPRLAND_INSTANCE_SIGNATURE")
+    hl.exec_cmd("command -v ryoku-monitor >/dev/null 2>&1 && ryoku-monitor autoscale")
     hl.exec_cmd("ryoku-shell daemon")
     hl.exec_cmd("command -v hypridle >/dev/null 2>&1 && hypridle")
+    hl.exec_cmd("command -v ryoku-leds >/dev/null 2>&1 && ryoku-leds apply")
     -- first-login walkthrough, once. the flag is written only if qs actually
     -- ran the tour, so a launch failure retries next login.
     local welcome_state = (os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")) .. "/ryoku"

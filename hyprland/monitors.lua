@@ -1,3 +1,4 @@
--- seed: every panel at its highest refresh rate. per-output entries go in
--- monitors_user.lua (see monitors_user.lua.example), which loads after this.
+-- managed by ryoku-monitor (DPI autoscale). seed = `highrr` so every panel
+-- comes up at max refresh; ryoku-monitor then captures per-output entries
+-- (and the matching GDK_SCALE) on Hyprland start.
 hl.monitor({ output = "", mode = "highrr", position = "auto", scale = 1 })

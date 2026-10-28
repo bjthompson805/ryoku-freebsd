@@ -81,6 +81,9 @@ say "building ryoku-livewall"
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"
 done
+for s in ryoku-monitor ryoku-leds; do
+  install -m755 "$repo/system/$s" "$bin/$s"
+done
 install -m755 "$repo/shell/quickshell/plugins/ryoku-plugins-place" "$bin/ryoku-plugins-place"
 cat >"$bin/ryoku-session" <<'EOF'
 #!/bin/sh

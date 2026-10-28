@@ -17,8 +17,7 @@ Item {
         { k: ">",      d: "packages: >install, >remove, >search" },
         { k: "=",      d: "calculator" },
         { k: "?",      d: "web search (supports !bangs)" },
-        { k: "@",      d: "live radio: @lofi tunes in, @stop tunes out" },
-        { k: "\\",     d: "ask the Rashin agent (one terse answer)" }
+        { k: "@",      d: "live radio: @lofi tunes in, @stop tunes out" }
     ]
     readonly property var keyRows: [
         { k: "Enter",  d: "run the selection" },

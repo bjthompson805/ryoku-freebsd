@@ -1,8 +1,9 @@
 -- monitors_user.lua: hand-written manual monitor overrides.
 --
 -- Copy this file to ~/.config/hypr/monitors_user.lua and edit it. It is loaded
--- after monitors.lua, so anything you set here wins. The file is yours: it is
--- never shipped or overwritten.
+-- after the auto-generated monitors.lua, so anything you set here wins, and
+-- ryoku-monitor's autoscale leaves any output you name here alone. The file is
+-- yours: it is never shipped, and ryoku-monitor never overwrites it.
 --
 -- Use it when auto-detection is wrong: a monitor with a fake or generic EDID, a
 -- panel that needs a forced mode or a custom modeline, or a layout you want
