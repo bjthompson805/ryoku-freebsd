@@ -6,12 +6,13 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "Singletons"
 
-// Persistent region-capture boundary. While a region recording runs (Quick or
-// Studio), everything outside the captured box is dimmed and the box stays clear,
-// so you see exactly what is being recorded and can keep moving windows around it.
-// Fully click-through and on the Top layer -- below the shell's own chrome (the
-// recording control bar), above app windows. gsr crops to the same box, and the
-// box interior has no overlay pixels, so the dim never lands in the recording.
+// Persistent region-capture boundary. While a region recording runs, everything
+// outside the captured box is dimmed and the box stays clear, so you see exactly
+// what is being recorded and can keep moving windows around it. Fully
+// click-through and on the Top layer -- below the shell's own chrome (the
+// recording control bar), above app windows. wf-recorder crops to the same box,
+// and the box interior has no overlay pixels, so the dim never lands in the
+// recording.
 PanelWindow {
     id: win
 
@@ -57,7 +58,7 @@ PanelWindow {
     readonly property color dim: Qt.rgba(0, 0, 0, 0.45)
 
     screen: modelData
-    visible: Recorder.anyActive && Recorder.regionGeom !== "" && onScreen
+    visible: Recorder.active &&Recorder.regionGeom !== "" && onScreen
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top

@@ -7,9 +7,9 @@ import "Singletons"
 
 /**
  * record zone of the 力 deck = capture control + the recordings list under one
- * roof. running state shows a pulsing REC tag, elapsed clock and pause/stop;
- * idle shows a Record button that opens the floating recording island in its
- * pre-record chooser (capture mode + audio toggles, then Quick / Studio / Edit).
+ * roof. running state shows a pulsing REC tag, elapsed clock and stop; idle
+ * shows a Record button that opens the floating recording island in its
+ * pre-record chooser (capture mode + audio toggles, then Quick).
  * the recordings list sits directly below, so the whole "record" concern is one
  * group instead of two. requestClose() dismisses the deck before the island opens
  * (and before any capture) so the panel is never in the frame. the deck renders
@@ -37,7 +37,7 @@ Item {
 
     Process {
         id: recProc
-        command: ["sh", "-c", "find \"$1\" -maxdepth 1 -type f -name 'recording_*.mp4' -printf '%T@\\t%s\\t%p\\n' 2>/dev/null | sort -rn", "_", root.recDir]
+        command: ["sh", "-c", "for f in \"$1\"/recording_*.mp4; do [ -f \"$f\" ] && stat -f '%m%t%z%t%N' \"$f\"; done | sort -rn", "_", root.recDir]
         stdout: StdioCollector {
             onStreamFinished: {
                 recModel.clear();
@@ -93,7 +93,7 @@ Item {
     }
     Timer { id: recRefresh; interval: 1500; onTriggered: root.refreshRecs() }
 
-    // flat icon button (play / folder / trash / pause / stop). tints carry
+    // flat icon button (play / folder / trash / stop). tints carry
     // semantics: vermilion = destructive, cream = neutral, iconDim = rest.
     component IconBtn: Rectangle {
         property string glyph: ""
@@ -124,7 +124,7 @@ Item {
         spacing: 8 * root.s
 
         // running controls = pulsing vermilion REC tag, elapsed time in
-        // tabular figures, pause + stop on the right.
+        // tabular figures, stop on the right.
         Item {
             width: parent.width
             visible: Recorder.active
@@ -139,12 +139,12 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: recPillText.implicitWidth + 14 * root.s
                     height: 20 * root.s
-                    color: Recorder.paused ? Theme.faint : Theme.brand
-                    opacity: Recorder.paused ? 1 : Recorder.pulse
+                    color: Theme.brand
+                    opacity: Recorder.pulse
                     Text {
                         id: recPillText
                         anchors.centerIn: parent
-                        text: Recorder.paused ? "PAUSED" : "REC"
+                        text: "REC"
                         color: Theme.cream
                         font.family: Theme.mono
                         font.pixelSize: 9.5 * root.s
@@ -166,12 +166,6 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 0
-                IconBtn {
-                    visible: Recorder.canPause
-                    glyph: Recorder.paused ? "play" : "pause"
-                    tint: Theme.cream
-                    onClicked: Recorder.togglePause()
-                }
                 IconBtn {
                     glyph: "stop"
                     tint: Theme.vermLit

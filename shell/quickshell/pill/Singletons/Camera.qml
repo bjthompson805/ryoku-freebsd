@@ -6,7 +6,7 @@ import Quickshell.Io
 
 // Webcam-overlay state, shared by the record-island toggle, the sidebar Mirror
 // tile and CameraOverlay. The overlay is a shaped, draggable self-view bubble on
-// a layer surface, so it stays across workspace switches and gsr captures it into
+// a layer surface, so it stays across workspace switches and the recorder captures it into
 // recordings. Shape, size, flip and position persist to ~/.config/ryoku/camera.json;
 // `active` stays in-memory so the camera starts off each session and is toggled
 // on demand.

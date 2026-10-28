@@ -9,7 +9,7 @@ import Ryoku.Blobs
 import "Singletons"
 
 // Draggable, shaped webcam bubble on a per-screen layer surface: it stays put
-// across workspace switches and gsr captures it into recordings. The live feed
+// across workspace switches and the recorder captures it into recordings. The live feed
 // is the native CameraFeed (a scene-graph texture, so it can be masked), shaped
 // by a MultiEffect mask from square corners to a full circle. Interactive, so
 // the input mask covers only the bubble and the rest of the screen stays
@@ -127,7 +127,7 @@ PanelWindow {
         CameraHandles {
             anchors.fill: parent
             mode: bubble.dragMode
-            opacity: (bubbleHov.hovered && !Recorder.anyActive) ? 1 : 0
+            opacity: (bubbleHov.hovered && !Recorder.active) ? 1 : 0
             visible: opacity > 0.01
             Behavior on opacity { NumberAnimation { duration: 140 } }
         }
@@ -158,7 +158,7 @@ PanelWindow {
                 const cy = drag.centroid.pressPosition.y;
                 const w = bubble.width;
                 const h = bubble.height;
-                if (Recorder.anyActive)
+                if (Recorder.active)
                     bubble.dragMode = "move"; // no shape edits mid-recording
                 else if (cx > w - 30 && cy > h - 30)
                     bubble.dragMode = "resize";

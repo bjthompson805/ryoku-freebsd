@@ -4,7 +4,7 @@ What still assumes Linux. Delete a line when it is done.
 
 ## Dead references to removed Linux-only features
 
-- Studio record: `pill/Singletons/Recorder.qml`. Stash installer: `pill/Singletons/Stash.qml`.
+- Stash installer: `pill/Singletons/Stash.qml`.
 - Update channel: `pill/Singletons/Updates.qml`, `shell/ipc/wallpaper.go` (`ryoku update`, `ryoku-leds`).
 - Removed apps and helpers still named in binds, window rules and the hub: ryovm, ryowalls, rashin, `ryoku-monitor`, `ryoku-gpu`, `ryoku-charge-limit` (`hyprland/modules/binds.lua`, `window_rules.lua`, `hub/ShellSettingsPage.qml`, `hub/DisplaysPage.qml`, `launcher/AskPanel.qml`, `launcher/providers/actions/catalog.js`, `pill/Singletons/Battery.qml`).
 
@@ -18,7 +18,6 @@ What still assumes Linux. Delete a line when it is done.
 - `ip addr` / `ip route` / `lsblk`: `pill/popouts/NetworkPopout.qml`, `NetSpeed.qml`, `SysStats.qml`. Port to `ifconfig`, `route -n get default`, `geom disk list`.
 - Package search via pacman/yay: `launcher/providers/packages/Packages.qml`. Port to `pkg search`.
 - Battery via upower: `pill/Singletons/Battery.qml`. Check upower's FreeBSD backend, else `acpiconf -i 0`.
-- Screen recording via gpu-screen-recorder: `scripts/ryoku-cmd-screenrecord`, `Recorder.qml`, `hub/RecordingPage.qml`. Port to `wf-recorder`.
 - `ddcutil` (external monitor brightness): `shared/Devices.qml`, `DisplayPopout.qml`.
 
 ## No FreeBSD equivalent
@@ -30,3 +29,4 @@ What still assumes Linux. Delete a line when it is done.
 - `install.sh` end to end, the `Ryoku.Blobs` CMake build, and the `ryoku-livewall` build.
 - Every QML surface under Quickshell 0.3.2 / Qt 6.11.
 - qylock PAM auth against FreeBSD's `/etc/pam.d`.
+- A real wf-recorder capture: VAAPI fallback timing, region crop, and pipewire-pulse audio device names.

@@ -40,7 +40,7 @@ Item {
 
     readonly property real nubProg: 0.14
     readonly property real wantProg: {
-        if (Recorder.anyActive) return (!hud.hidden || hud.revealHeld) ? 1 : hud.nubProg;
+        if (Recorder.active) return (!hud.hidden || hud.revealHeld) ? 1 : hud.nubProg;
         return (Recorder.chooserOpen || hud.starting) ? 1 : 0;
     }
     property real prog: hud.wantProg
@@ -74,15 +74,6 @@ Item {
         }
     }
     Timer { id: quickTimer; interval: 420; onTriggered: { Recorder.start(hud.recordArgs()); hud.starting = false; } }
-    function launchRyomotion() {
-        Recorder.chooserOpen = false;
-        Spawn.spawn(["sh", "-c",
-            "command -v ryomotion >/dev/null 2>&1 && exec ryomotion --edit || notify-send 'Ryomotion' 'Not installed yet'"]);
-    }
-    function startStudio() {
-        Recorder.chooserOpen = false;
-        Recorder.startStudio(hud.optDesktopAudio, hud.optMic, Recorder.regionGeom);
-    }
 
     // 6-dot drag handle, shared by the active-recording and chooser layouts.
     component GripDots: Item {
@@ -162,8 +153,8 @@ Item {
 
     // content size drives island body (after content items are declared, QML
     // resolves forward references so referencing grid/chooserGrid here is fine).
-    readonly property real curW: (Recorder.anyActive || hud.starting) ? grid.implicitWidth  : chooserGrid.implicitWidth
-    readonly property real curH: (Recorder.anyActive || hud.starting) ? grid.implicitHeight : chooserGrid.implicitHeight
+    readonly property real curW: (Recorder.active || hud.starting) ? grid.implicitWidth  : chooserGrid.implicitWidth
+    readonly property real curH: (Recorder.active || hud.starting) ? grid.implicitHeight : chooserGrid.implicitHeight
 
     FloatingIsland {
         id: island
@@ -175,7 +166,7 @@ Item {
         barBand: hud.barBand
         bodyW: hud.curW + 20 * hud.s
         bodyH: hud.curH + 14 * hud.s
-        dragEnabled: Recorder.anyActive || Recorder.chooserOpen
+        dragEnabled: Recorder.active || Recorder.chooserOpen
         dockEdge: "bottom"
         onDragReleased: (_e) => {}
 
@@ -202,7 +193,7 @@ Item {
 
         Grid {
             id: grid
-            visible: Recorder.anyActive || hud.starting
+            visible: Recorder.active || hud.starting
             anchors.centerIn: parent
             columns: island.layoutVertical ? 1 : 99
             rowSpacing: 7 * hud.s
@@ -216,8 +207,8 @@ Item {
                 width: 9 * hud.s
                 height: 9 * hud.s
                 radius: width / 2
-                color: Recorder.paused ? Theme.faint : Theme.vermLit
-                opacity: Recorder.paused ? 1 : Recorder.pulse
+                color: Theme.vermLit
+                opacity: Recorder.pulse
             }
 
             Text {
@@ -228,8 +219,7 @@ Item {
                 font.features: { "tnum": 1 }
             }
 
-            RecordButton { visible: Recorder.canPause; s: hud.s; glyph: Recorder.paused ? "play" : "pause"; tint: Theme.cream; onTapped: Recorder.togglePause() }
-            RecordButton { s: hud.s; glyph: "stop"; tint: Theme.vermLit; onTapped: Recorder.studioActive ? Recorder.stopStudio() : Recorder.stop() }
+            RecordButton { s: hud.s; glyph: "stop"; tint: Theme.vermLit; onTapped: Recorder.stop() }
             RecordButton { s: hud.s; glyph: hud.sinkMuted ? "speaker-off" : "speaker"; tint: hud.sinkMuted ? Theme.faint : Theme.cream; onTapped: hud.toggleSink() }
             RecordButton { s: hud.s; glyph: hud.micMuted ? "mic-off" : "mic"; tint: hud.micMuted ? Theme.faint : Theme.cream; onTapped: hud.toggleMic() }
             RecordButton { s: hud.s; glyph: "compress"; tint: Theme.subtle; onTapped: hud.hidden = !hud.hidden }
@@ -238,7 +228,7 @@ Item {
         Grid {
             id: chooserGrid
             anchors.centerIn: parent
-            visible: Recorder.chooserOpen && !Recorder.anyActive && !hud.starting
+            visible: Recorder.chooserOpen && !Recorder.active && !hud.starting
             columns: island.layoutVertical ? 1 : 99
             rowSpacing: 7 * hud.s
             columnSpacing: 6 * hud.s
@@ -261,8 +251,6 @@ Item {
             }
 
             Action { s: hud.s; glyph: "record"; label: "Quick"; tint: Theme.vermLit; primary: true; onTapped: hud.startQuick() }
-            Action { s: hud.s; glyph: "film";   label: "Studio"; onTapped: hud.startStudio() }
-            Action { s: hud.s; glyph: "folder"; label: "Edit";   onTapped: hud.launchRyomotion() }
 
             RecordButton { s: hud.s; glyph: "close"; tint: Theme.subtle; onTapped: Recorder.chooserOpen = false }
         }
@@ -277,8 +265,8 @@ Item {
         radius: width / 2
         x: cx - width / 2
         y: cy - height / 2
-        color: Recorder.paused ? Theme.faint : Theme.vermLit
-        opacity: Recorder.anyActive ? Math.max(0, 1 - hud.prog / 0.5) * (Recorder.paused ? 0.9 : Recorder.pulse) : 0
+        color: Theme.vermLit
+        opacity: Recorder.active ? Math.max(0, 1 - hud.prog / 0.5) * Recorder.pulse : 0
         visible: opacity > 0.01
     }
 

@@ -752,8 +752,8 @@ ShellRoot {
                 Region { x: agentUsagePop.floatHudX; y: agentUsagePop.floatHudY; width: agentUsagePop.floatHudW; height: agentUsagePop.floatHudH }
                 Region { x: pluginPops.maskTrigX; y: pluginPops.maskTrigY; width: pluginPops.maskTrigW; height: pluginPops.maskTrigH }
                 Region { x: pluginPops.maskBodyX; y: pluginPops.maskBodyY; width: pluginPops.maskBodyW; height: pluginPops.maskBodyH }
-                Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.anyActive || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
-                Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.anyActive ? recHud.trigW : 0; height: Recorder.anyActive ? recHud.trigH : 0 }
+                Region { x: recHud.hudX; y: recHud.hudY; width: ((Recorder.active || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudW : 0; height: ((Recorder.active || Recorder.chooserOpen) && recHud.prog > 0.25) ? recHud.hudH : 0 }
+                Region { x: recHud.trigX; y: recHud.trigY; width: Recorder.active ? recHud.trigW : 0; height: Recorder.active ? recHud.trigH : 0 }
                 Region { x: delosIsland.hudX; y: delosIsland.hudY; width: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudW : 0; height: (overlay.delos && delosIsland.prog > 0.25) ? delosIsland.hudH : 0 }
                 Region { x: delosIsland.trigX; y: delosIsland.trigY; width: overlay.delos ? delosIsland.trigW : 0; height: overlay.delos ? delosIsland.trigH : 0 }
                 Region { x: 0; y: 0; width: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerW : 0; height: (overlay.sidebarLeftOn && !overlay.monFullscreen) ? overlay.sidebarCornerH : 0 }
@@ -1857,16 +1857,16 @@ ShellRoot {
 
     // the self-view is a recording companion: when the last capture stops, clear
     // it so it does not linger. a plain mirror toggled on with no recording just
-    // stays until toggled off (no anyActive transition to clear it).
+    // stays until toggled off (no active transition to clear it).
     Connections {
         target: Recorder
-        function onAnyActiveChanged() {
-            if (!Recorder.anyActive)
+        function onActiveChanged() {
+            if (!Recorder.active)
                 Camera.active = false;
         }
     }
 
-    // draggable, shaped webcam bubble; stays across workspaces, captured by gsr.
+    // draggable, shaped webcam bubble; stays across workspaces, captured by the recorder.
     Variants {
         model: Quickshell.screens
         CameraOverlay {}

@@ -7,9 +7,8 @@ import "Singletons"
 
 // Recording: the quality knobs behind the bar's one-tap screen recorder. Writes
 // ~/.config/ryoku/recording.json, read by ryoku-cmd-screenrecord (env vars still
-// override). Constant framerate is the default because variable-framerate files
-// often import or play back as ~30fps and look choppy. The under-the-hood card
-// asks the recorder which backend + hardware encoder will actually run.
+// override). The under-the-hood card asks the recorder which encoder will
+// actually run.
 Item {
     id: page
 
@@ -24,19 +23,15 @@ Item {
         JsonAdapter {
             id: adapter
             property int fps: 60
-            property string framerateMode: "cfr"
             property string quality: "very_high"
             property string codec: "h264"
             property string encoder: "gpu"
-            property bool cursor: true
         }
 
         Component.onCompleted: if (!cfg.text()) cfg.writeAdapter()
     }
 
-    // live readout: which backend + encoder the recorder resolves for this
-    // machine (gsr probe is time-boxed, so this can take a moment on first open).
-    property string infoBackend: ""
+    // live readout: which encoder the recorder resolves for this machine.
     property string infoEncoder: ""
     Process {
         id: info
@@ -44,9 +39,7 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    var j = JSON.parse(this.text);
-                    page.infoBackend = j.backend || "";
-                    page.infoEncoder = j.encoder || "";
+                    page.infoEncoder = JSON.parse(this.text).encoder || "";
                 } catch (e) {}
             }
         }
@@ -54,10 +47,9 @@ Item {
     Component.onCompleted: info.running = true
 
     readonly property var fpsOptions: [{ "key": "30", "label": "30 fps" }, { "key": "60", "label": "60 fps" }, { "key": "120", "label": "120 fps" }]
-    readonly property var fmOptions: [{ "key": "cfr", "label": "Constant (smooth, recommended)" }, { "key": "vfr", "label": "Variable (smaller, can look choppy)" }]
     readonly property var qualityOptions: [{ "key": "medium", "label": "Medium" }, { "key": "high", "label": "High" }, { "key": "very_high", "label": "Very high" }, { "key": "ultra", "label": "Ultra" }]
     readonly property var codecOptions: [{ "key": "h264", "label": "H.264 (most compatible)" }, { "key": "hevc", "label": "HEVC / H.265 (crisper)" }, { "key": "av1", "label": "AV1 (best, newer GPUs)" }]
-    readonly property var encoderOptions: [{ "key": "gpu", "label": "GPU (hardware)" }, { "key": "cpu", "label": "CPU (libx264)" }]
+    readonly property var encoderOptions: [{ "key": "gpu", "label": "GPU (VAAPI)" }, { "key": "cpu", "label": "CPU (software)" }]
 
     Flickable {
         anchors.fill: parent
@@ -75,7 +67,7 @@ Item {
             Text {
                 width: col.width
                 wrapMode: Text.WordWrap
-                text: "Ryoku records with gpu-screen-recorder, hardware-encoded on your GPU (it falls back to wf-recorder on multi-GPU machines). Start and stop from the bar's screen-capture Tools; these settings shape every recording. Files land in ~/Videos/Recordings."
+                text: "Ryoku records with wf-recorder, hardware-encoded on your GPU through VAAPI (it falls back to the CPU if the GPU encoder can't start). Start and stop from the bar's screen-capture Tools; these settings shape every recording. Files land in ~/Videos/Recordings."
                 color: Theme.subtle
                 font.family: Theme.font
                 font.pixelSize: 13
@@ -85,7 +77,7 @@ Item {
             SettingSection {
                 width: col.width
                 title: "QUALITY"
-                description: "Higher framerate is smoother (120 gets closer to a high-refresh panel); higher quality and HEVC/AV1 are crisper but larger. Constant framerate plays and edits correctly everywhere; variable is smaller but can look choppy or import as 30fps."
+                description: "Higher framerate is smoother (120 gets closer to a high-refresh panel); higher quality and HEVC/AV1 are crisper but larger. Recordings are always constant framerate, so they play and edit correctly everywhere."
 
                 Dropdown {
                     width: parent.width
@@ -96,18 +88,6 @@ Item {
                     current: String(adapter.fps)
                     onChosen: (k) => {
                         adapter.fps = parseInt(k);
-                        cfg.writeAdapter();
-                    }
-                }
-                Dropdown {
-                    width: parent.width
-                    label: "Framerate mode"
-                    fieldWidth: 200
-                    highlightId: "quality_framerate_mode"
-                    options: page.fmOptions
-                    current: adapter.framerateMode
-                    onChosen: (k) => {
-                        adapter.framerateMode = k;
                         cfg.writeAdapter();
                     }
                 }
@@ -154,16 +134,6 @@ Item {
                         cfg.writeAdapter();
                     }
                 }
-                ToggleRow {
-                    width: parent.width
-                    label: "Show the cursor in recordings"
-                    highlightId: "encoder_cursor"
-                    checked: adapter.cursor
-                    onToggled: (c) => {
-                        adapter.cursor = c;
-                        cfg.writeAdapter();
-                    }
-                }
             }
 
             SettingSection {
@@ -175,7 +145,7 @@ Item {
                 Text {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    text: page.infoBackend === "" ? "Detecting\u2026" : ("Backend    " + (page.infoBackend === "gsr" ? "gpu-screen-recorder" : "wf-recorder") + "\nEncoder    " + page.infoEncoder + "\nContainer  MP4  \u00b7  " + adapter.fps + "fps " + adapter.framerateMode.toUpperCase() + "  \u00b7  " + adapter.codec + "  \u00b7  " + adapter.quality)
+                    text: page.infoEncoder === "" ? "Detecting\u2026" : ("Recorder   wf-recorder\nEncoder    " + page.infoEncoder + "\nContainer  MP4  \u00b7  " + adapter.fps + "fps CFR  \u00b7  " + adapter.codec + "  \u00b7  " + adapter.quality)
                     color: Theme.dim
                     font.family: Theme.mono
                     font.pixelSize: 12

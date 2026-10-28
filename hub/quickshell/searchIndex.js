@@ -177,11 +177,9 @@ var entries = [
     { section: "connections", tab: "hotspot", label: "Network name", highlight: "hotspot_name", keywords: ["ssid", "hotspot name", "wifi name", "network id"] },
     { section: "connections", tab: "hotspot", label: "Password", highlight: "hotspot_password", keywords: ["hotspot password", "wpa2 password", "wifi password", "shared key"] },
     { section: "recording", tab: null, label: "Framerate", highlight: "quality_framerate", keywords: ["fps", "frame rate", "video framerate", "recording fps"] },
-    { section: "recording", tab: null, label: "Framerate mode", highlight: "quality_framerate_mode", keywords: ["cfr vfr", "constant framerate", "variable framerate", "frame rate mode"] },
     { section: "recording", tab: null, label: "Quality", highlight: "quality_quality", keywords: ["video quality", "bitrate", "recording quality", "encode quality"] },
     { section: "recording", tab: null, label: "Codec", highlight: "quality_codec", keywords: ["video codec", "h264 hevc av1", "compression format", "encoding format"] },
     { section: "recording", tab: null, label: "Encoder", highlight: "encoder_encoder", keywords: ["hardware encoder", "gpu cpu encoding", "video encoder", "encoding backend"] },
-    { section: "recording", tab: null, label: "Show the cursor in recordings", highlight: "encoder_cursor", keywords: ["cursor recording", "mouse pointer capture", "show cursor", "record cursor"] },
 
 
     { section: "appearance", tab: "look", label: "Corner radius", highlight: "look_shape_radius", keywords: ["radius", "rounding", "corner", "roundness", "window corners"] },
