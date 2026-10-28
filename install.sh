@@ -99,7 +99,11 @@ for s in ryowalls ryoku-summon; do
 done
 cat >"$bin/ryoku-session" <<'EOF'
 #!/bin/sh
-# start the Ryoku desktop from a console login.
+# start the Ryoku desktop from a console login. the session's PATH carries
+# ~/.local/bin whatever the login shell is, since Hyprland's autostart and
+# every keybind resolve the ryoku commands from there.
+PATH="$HOME/.local/bin:$PATH"
+export PATH
 exec dbus-run-session Hyprland
 EOF
 chmod 755 "$bin/ryoku-session"
@@ -197,4 +201,4 @@ if [ $hypr_live -eq 1 ] && [ $reload -eq 1 ]; then
 else
   say "done. start the desktop with: ryoku-session"
 fi
-case ":$PATH:" in *":$bin:"*) ;; *) say "add $bin to your PATH" ;; esac
+case ":$PATH:" in *":$bin:"*) ;; *) say "start it with $bin/ryoku-session (or add $bin to your PATH)" ;; esac

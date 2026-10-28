@@ -18,9 +18,11 @@ adds you to `video`, `operator` and `webcamd`, builds the Go programs and the
 QML plugin, and deploys the configs into `~/.config`. Your existing
 `~/.config/hypr` is backed up first. Then, from a console login:
 
-    ryoku-session
+    ~/.local/bin/ryoku-session
 
-Make sure `~/.local/bin` is on your `PATH`.
+The session puts `~/.local/bin` on its own `PATH`, whatever your login shell.
+To run `ryoku` from a terminal, add it to yours too (tcsh: `set path = (~/.local/bin $path)`
+in `~/.cshrc`).
 
 To update, use Ryoku Settings > Updates, or run `ryoku update`: it creates a
 boot environment, pulls this checkout, upgrades packages and re-runs
