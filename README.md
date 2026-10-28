@@ -18,11 +18,11 @@ adds you to `video`, `operator` and `webcamd`, builds the Go programs and the
 QML plugin, and deploys the configs into `~/.config`. Your existing
 `~/.config/hypr` is backed up first. Then, from a console login:
 
-    ~/.local/bin/ryoku-session
+    start-ryoku
 
-The session puts `~/.local/bin` on its own `PATH`, whatever your login shell.
-To run `ryoku` from a terminal, add it to yours too (tcsh: `set path = (~/.local/bin $path)`
-in `~/.cshrc`).
+`start-ryoku` lives in `~/.local/bin`, which Ryoku's fish config puts on your
+`PATH`; make fish your login shell with `chsh -s /usr/local/bin/fish`. The
+desktop sets up its own `PATH`, whatever the shell.
 
 To update, use Ryoku Settings > Updates, or run `ryoku update`: it creates a
 boot environment, pulls this checkout, upgrades packages and re-runs

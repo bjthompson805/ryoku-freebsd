@@ -87,7 +87,7 @@ say "building ryoku-livewall"
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"
 done
-for s in ryoku ryoku-session ryoku-monitor ryoku-leds; do
+for s in ryoku start-ryoku ryoku-monitor ryoku-leds; do
   install -m755 "$repo/system/$s" "$bin/$s"
 done
 # the checkout this install came from is the update channel `ryoku` tracks.
@@ -197,6 +197,6 @@ if [ $hypr_live -eq 1 ] && [ $reload -eq 1 ]; then
   daemon -f -o "$log" "$bin/ryoku-shell" daemon
   say "reloaded Hyprland and restarted ryoku-shell"
 else
-  say "done. start the desktop with: ryoku-session"
+  say "done. start the desktop with: start-ryoku"
 fi
-case ":$PATH:" in *":$bin:"*) ;; *) say "start it with $bin/ryoku-session (or add $bin to your PATH)" ;; esac
+case ":$PATH:" in *":$bin:"*) ;; *) say "start it with $bin/start-ryoku (or add $bin to your PATH)" ;; esac
