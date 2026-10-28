@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # URL -> stash, via yt-dlp (sites + raw media).
 # usage: stash-download.sh <url>
 set -u

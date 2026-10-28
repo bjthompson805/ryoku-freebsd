@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # LocalSend helper for the Ryoku shell file stash: LAN device discovery and send.
 # Usage: localsend.sh discover | send <file> <ip> | send-all <dir> <ip>
 set -u

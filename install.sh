@@ -104,7 +104,9 @@ cat >"$bin/ryoku-session" <<'EOF'
 # every keybind resolve the ryoku commands from there.
 PATH="$HOME/.local/bin:$PATH"
 export PATH
-exec dbus-run-session Hyprland
+# ck-launch-session registers a ConsoleKit session, which polkit needs to
+# authorize the shell's password prompt.
+exec ck-launch-session dbus-run-session Hyprland
 EOF
 chmod 755 "$bin/ryoku-session"
 

@@ -25,5 +25,9 @@ hl.env("GSK_RENDERER", "gl")
 
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
+-- Quickshell's font override includes /etc/fonts/fonts.conf unless this is
+-- set, and FreeBSD keeps fontconfig under /usr/local/etc.
+hl.env("FONTCONFIG_FILE", "/usr/local/etc/fonts/fonts.conf")
+
 hl.env("EDITOR", "nvim")
 hl.env("VISUAL", "nvim")

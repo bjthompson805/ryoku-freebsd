@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # 'noun' below is a literal "file"/"files" label, not $(file) output.
 # shellcheck disable=SC2209
 # shrink stashed videos/images via ffmpeg/magick. writes "<name>.min.<ext>" next to the original.

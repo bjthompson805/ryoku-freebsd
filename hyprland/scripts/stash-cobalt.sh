@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # cobalt-backed media fetcher + local remuxer for the Ryoku stash.
 # downloads through a cobalt API instance (https://github.com/imputnet/cobalt)
 # when one's reachable, falls back to yt-dlp otherwise so a fresh box still works.
