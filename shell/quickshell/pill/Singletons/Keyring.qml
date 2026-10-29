@@ -13,7 +13,7 @@ import Quickshell.Io
  *
  * The typed secret goes back over the daemon's control socket on its own line,
  * never as a process argument, so it cannot leak through the world-readable
- * /proc/<pid>/cmdline. The daemon owns the secret exchange and encrypts it before
+ * process list (ps shows every argv). The daemon owns the secret exchange and encrypts it before
  * it touches the bus.
  */
 Singleton {

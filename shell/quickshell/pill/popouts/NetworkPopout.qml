@@ -15,7 +15,7 @@ import "../Singletons"
 // only ever talks wifi -- so a wired box used to open this popout and see
 // nothing but "Searching networks…". the status rows here read the same
 // Quickshell.Networking devices Link.qml's main view uses for kind/speed/
-// SSID/signal, plus a per-interface `ip addr` lookup for the IP (the QML
+// SSID/signal, plus a per-interface `ifconfig` lookup for the IP (the QML
 // device's own "address" property is its MAC, not an IP) so eth and wifi
 // never share one "the" IP. a wifi header eyebrow over LinkWifi's live
 // enable toggle, rescan, signal-sorted network list and inline password
@@ -62,7 +62,7 @@ Item {
 
     function ipCommand(iface) {
         return ["sh", "-c",
-            "ip -4 -o addr show dev \"$1\" scope global up | awk '{for(i=1;i<=NF;i++) if($i==\"inet\"){print $(i+1); exit}}' | cut -d/ -f1",
+            "ifconfig \"$1\" inet 2>/dev/null | awk '$1==\"inet\"{print $2; exit}'",
             "sh", iface];
     }
 
