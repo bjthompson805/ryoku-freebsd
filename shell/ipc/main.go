@@ -76,5 +76,6 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-shell wallpaper [next|init|set <path>]")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell backlight <up|down>")
+	fmt.Fprintln(os.Stderr, "  ryoku-shell lockkeys")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
 }

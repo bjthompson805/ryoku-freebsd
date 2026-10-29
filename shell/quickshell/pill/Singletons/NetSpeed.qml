@@ -4,10 +4,10 @@ import Quickshell
 import Quickshell.Io
 
 // live network throughput for the bar's net-speed module: rx/tx byte-rate off
-// the default-route interface, sampled from /proc/net/dev deltas. the
-// interface is resolved via `ip route` and re-resolved occasionally (it can
-// change, e.g. wifi to ethernet), so there is no per-tick subprocess. the
-// poller runs only while `active` (a visible BarNetSpeed sets it). keeps a
+// the default-route interface, sampled from `netstat -ibn` byte counter
+// deltas. the interface is resolved via `route get default` and re-resolved
+// occasionally (it can change, e.g. wifi to ethernet). the poller runs only
+// while `active` (a visible BarNetSpeed sets it). keeps a
 // short rate history for the popout sparklines and a running byte total for
 // as long as the daemon has been up, for the session-usage readout.
 Singleton {
@@ -63,7 +63,7 @@ Singleton {
 
     Process {
         id: ifaceProc
-        command: ["sh", "-c", "ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i==\"dev\") print $(i+1)}' | head -1"]
+        command: ["sh", "-c", "route -n get default 2>/dev/null | awk '/interface:/{print $2}'"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var p = (this.text || "").trim();
@@ -89,30 +89,23 @@ Singleton {
         repeat: true
         running: root.active && root._iface.length > 0
         triggeredOnStart: true
-        onTriggered: devFile.reload()
+        onTriggered: devProc.running = true
     }
 
-    FileView {
-        id: devFile
-        path: "/proc/net/dev"
-        blockLoading: true
-        printErrors: false
-        onLoaded: {
-            if (root._iface.length === 0)
-                return;
-            var lines = devFile.text().split("\n");
-            for (var i = 0; i < lines.length; i++) {
-                var ln = lines[i].trim();
-                var idx = ln.indexOf(":");
-                if (idx < 0)
-                    continue;
-                if (ln.slice(0, idx).trim() !== root._iface)
-                    continue;
-                var f = ln.slice(idx + 1).trim().split(/\s+/);
-                if (f.length < 9)
+    // the <Link#N> row carries the interface's total Ibytes / Obytes.
+    Process {
+        id: devProc
+        command: ["netstat", "-ibn", "-I", root._iface]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var row = (this.text || "").split("\n").filter(function (ln) {
+                    return /^\S+\s+\S+\s+<Link#/.test(ln);
+                })[0];
+                if (!row)
                     return;
-                var rx = Number(f[0]);
-                var tx = Number(f[8]);
+                var f = row.trim().split(/\s+/);
+                var rx = Number(f[7]);
+                var tx = Number(f[10]);
                 var now = Date.now() / 1000;
                 if (root._prevRx >= 0 && root._prevTime > 0) {
                     var dt = now - root._prevTime;
@@ -134,7 +127,6 @@ Singleton {
                 root._prevRx = rx;
                 root._prevTx = tx;
                 root._prevTime = now;
-                return;
             }
         }
     }

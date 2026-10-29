@@ -113,7 +113,6 @@ Item {
         target: LockKeys
         function onCapsLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Caps Lock", LockKeys.capsLock); }
         function onNumLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Num Lock", LockKeys.numLock); }
-        function onScrollLockChanged() { if (Config.lockKeyOsdEnabled) root.flashLockKey("Scroll Lock", LockKeys.scrollLock); }
     }
 
     onPlayerChanged: {

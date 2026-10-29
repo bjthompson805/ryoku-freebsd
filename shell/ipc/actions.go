@@ -220,6 +220,31 @@ func pgrepRunning(pattern string) bool {
 	return exec.Command("pgrep", "-f", pattern).Run() == nil
 }
 
+// lockKeyState reads Caps/Num Lock off Hyprland's main keyboard. FreeBSD has
+// no LED classdevs to watch, so the lock-key binds ask for it on release.
+func lockKeyState() (caps, num bool, err error) {
+	out, err := exec.Command("hyprctl", "devices", "-j").Output()
+	if err != nil {
+		return false, false, err
+	}
+	var devs struct {
+		Keyboards []struct {
+			Main     bool `json:"main"`
+			CapsLock bool `json:"capsLock"`
+			NumLock  bool `json:"numLock"`
+		} `json:"keyboards"`
+	}
+	if err := json.Unmarshal(out, &devs); err != nil {
+		return false, false, err
+	}
+	for _, k := range devs.Keyboards {
+		if k.Main {
+			return k.CapsLock, k.NumLock, nil
+		}
+	}
+	return false, false, fmt.Errorf("no main keyboard")
+}
+
 // backlightProbe reads the panel's current brightness % from backlight(8).
 func backlightProbe() (int, error) {
 	out, err := exec.Command("backlight", "-q").Output()

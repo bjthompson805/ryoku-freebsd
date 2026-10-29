@@ -561,6 +561,15 @@ func (d *daemon) dispatch(line string) string {
 		}
 		d.ensure("pill")
 		return pillIpc("backlight", pct)
+	case "lockkeys":
+		// lockkeys -> the Caps/Num Lock binds fire this on release; the pill
+		// flashes its lock-key OSD when a state changed.
+		caps, num, err := lockKeyState()
+		if err != nil {
+			return "err lockkeys: " + err.Error()
+		}
+		d.ensure("pill")
+		return pillIpc("lockKeys", fmt.Sprint(caps), fmt.Sprint(num))
 	case "plugins":
 		// plugins reload -> the per-monitor PluginPopouts watch plugins.json and
 		// re-discover on change, so a Settings save retunes live; this is a no-op

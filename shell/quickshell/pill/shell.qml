@@ -395,6 +395,7 @@ ShellRoot {
         // toggle an enabled plugin's frame popout by id (leader menu / keybind).
         function pluginPopout(mon: string, id: string): void { root.togglePopout(mon, "plugin:" + id); }
         function backlight(pct: string): void { Devices.reportPanelBrightness(parseInt(pct, 10)); }
+        function lockKeys(caps: string, num: string): void { LockKeys.report(caps === "true", num === "true"); }
     }
 
     // The daemon writes surface commands to this socket to toggle pill surfaces
@@ -427,6 +428,8 @@ ShellRoot {
             return true;
         case "backlight":
             Devices.reportPanelBrightness(parseInt(mon, 10)); return true;
+        case "lockKeys":
+            LockKeys.report(parts[1] === "true", parts[2] === "true"); return true;
         case "voiceShow":
             root.voiceOff = false; root.popout = ""; root.popoutMon = mon; root.popoutCenter = -1; root.popout = "voice"; return true;
         case "voiceOff":
