@@ -73,7 +73,7 @@ Item {
 
     SystemClock { id: sys; precision: SystemClock.Minutes; enabled: root.open }
 
-    // laptop panel backlight, via Devices.qml (brightnessctl) -- same tool the
+    // laptop panel backlight, via Devices.qml (backlight(8)) -- same tool the
     // Hub's Comfort tab drives. re-read on open since hypridle can change it
     // (dim-on-timeout, restore-on-resume) while the sidebar is closed; that
     // resync is silent (no OSD flash), only an actual fader commit flashes it.
@@ -264,8 +264,8 @@ Item {
             onIconTapped: { if (Audio.sink) Audio.sink.audio.muted = !Audio.sink.audio.muted; }
         }
 
-        // backlight, via brightnessctl. moves update the readout live; the
-        // actual write debounces so a drag never floods the sysfs write.
+        // backlight, via backlight(8). moves update the readout live; the
+        // actual write debounces so a drag never floods the backlight device.
         HFader {
             width: parent.width
             s: root.s

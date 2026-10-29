@@ -96,7 +96,7 @@ Item {
 
     // --- Comfort: backlight and night light, applied at once via the shipped tools.
     // backlight itself is owned by the shared Devices singleton (see
-    // ryoku/shared/quickshell/Devices.qml) -- same brightnessctl state the pill's
+    // shared/quickshell/Devices.qml) -- same backlight(8) state the pill's
     // DisplayPopout drives, so a change here and a change from the sidebar fader
     // never fall out of sync. ---
     readonly property string scriptsDir: Quickshell.env("HOME") + "/.config/hypr/scripts/"

@@ -5,7 +5,7 @@ import Quickshell.Io
 import ".."
 import "../Singletons"
 
-// display popout content: laptop panel backlight (brightnessctl), screen
+// display popout content: laptop panel backlight (backlight(8)), screen
 // vibrance (a Hyprland screen_shader, via Singletons/Vibrance.qml), and per
 // external monitor brightness (ddcutil), as HFader rows reusing Devices.qml
 // (backlight/ddc) and Vibrance.qml (vibrance, shared with the hub's Comfort

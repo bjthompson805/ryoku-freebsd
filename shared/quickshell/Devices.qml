@@ -3,8 +3,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// owns external monitor brightness (ddcutil) and the laptop panel backlight
-// (brightnessctl). One real file, symlinked into every root's Singletons/
+// owns external monitor brightness (ddcutil, where present) and the laptop
+// panel backlight (backlight(8)). One real file, symlinked into every root's Singletons/
 // that needs it (pill's mixer/DisplayPopout AND the Hub's Appearance page),
 // same trick as SpawnCore.qml -- see that file's header for why a symlink
 // instead of a copy. Screen vibrance used to live here too (as nvibrant, then
@@ -34,7 +34,7 @@ Singleton {
         return m ? parseInt(m[1], 10) : -1;
     }
 
-    // --- laptop panel backlight (brightnessctl) -----------------------------
+    // --- laptop panel backlight (backlight(8)) ------------------------------
     // panelBrightness is the last known %, kept fresh for display. hypridle
     // dims/restores it independently of the shell (idle timeout, resume), so a
     // plain propertyChanged signal can't tell "the user just changed this" from
@@ -51,7 +51,7 @@ Singleton {
     function setPanelBrightness(pct) {
         var clamped = Math.max(5, Math.min(100, Math.round(pct)));
         root.panelBrightness = clamped;
-        Spawn.spawn(["brightnessctl", "set", clamped + "%"]);
+        Spawn.spawn(["backlight", String(clamped)]);
         root.panelBrightnessUserChanged(clamped);
     }
 
@@ -64,11 +64,10 @@ Singleton {
 
     Process {
         id: panelProbe
-        command: ["brightnessctl", "-m"]
+        command: ["backlight", "-q"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var first = this.text.trim().split("\n")[0];
-                var pct = parseInt((first.split(",")[3] || "").replace("%", ""), 10);
+                var pct = parseInt(this.text.trim(), 10);
                 if (!isNaN(pct))
                     root.panelBrightness = pct;
             }
