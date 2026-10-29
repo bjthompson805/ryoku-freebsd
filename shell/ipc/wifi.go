@@ -14,6 +14,9 @@ package main
 //	                                 -p reads the password from stdin
 //	ryoku-shell wifi disconnect
 //	ryoku-shell wifi radio on|off    ifconfig up/down, through ryoku-priv
+//	ryoku-shell wifi hotspot status  JSON: active, name, password
+//	ryoku-shell wifi hotspot up      name and password on stdin, one line each
+//	ryoku-shell wifi hotspot down
 
 import (
 	"bufio"
@@ -64,7 +67,7 @@ type wifiStatus struct {
 
 func runWifi(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: ryoku-shell wifi <status|watch|scan|connect [-p] <ssid>|disconnect|radio on|off>")
+		fmt.Fprintln(os.Stderr, "usage: ryoku-shell wifi <status|watch|scan|connect [-p] <ssid>|disconnect|radio on|off|hotspot status|up|down>")
 		return 2
 	}
 	var err error
@@ -98,6 +101,8 @@ func runWifi(args []string) int {
 			break
 		}
 		err = privCmd("wifi", args[1]).Run()
+	case "hotspot":
+		err = runHotspot(args[1:])
 	default:
 		err = fmt.Errorf("unknown wifi command %q", args[0])
 	}
@@ -643,4 +648,79 @@ func awaitAssociation(ev *wpaConn, timeout time.Duration) error {
 			return errors.New("could not join: " + msg)
 		}
 	}
+}
+
+// ---- hotspot ----------------------------------------------------------------
+
+// hotspotIface is the access-point clone ryoku-priv creates; it exists only
+// while the hotspot is up.
+const hotspotIface = "ryokuap0"
+
+type hotspotStatus struct {
+	Active   bool   `json:"active"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+// hotspotFile keeps the last name and password, mode 0600, so the next
+// hotspot comes up the same.
+func hotspotFile() string {
+	dir := os.Getenv("XDG_STATE_HOME")
+	if dir == "" {
+		dir = filepath.Join(os.Getenv("HOME"), ".local", "state")
+	}
+	return filepath.Join(dir, "ryoku", "hotspot")
+}
+
+func runHotspot(args []string) error {
+	if len(args) != 1 {
+		return errors.New("hotspot needs status, up or down")
+	}
+	switch args[0] {
+	case "status":
+		st := hotspotStatus{}
+		if b, err := os.ReadFile(hotspotFile()); err == nil {
+			lines := strings.SplitN(string(b), "\n", 3)
+			st.Name = lines[0]
+			if len(lines) > 1 {
+				st.Password = lines[1]
+			}
+		}
+		_, err := net.InterfaceByName(hotspotIface)
+		st.Active = err == nil
+		b, err := json.Marshal(st)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	case "up":
+		r := bufio.NewReader(os.Stdin)
+		name, _ := r.ReadString('\n')
+		pw, _ := r.ReadString('\n')
+		creds := strings.TrimRight(name, "\r\n") + "\n" + strings.TrimRight(pw, "\r\n") + "\n"
+		if err := os.MkdirAll(filepath.Dir(hotspotFile()), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(hotspotFile(), []byte(creds), 0o600); err != nil {
+			return err
+		}
+		cmd := privCmd("hotspot", "up")
+		cmd.Stdin = strings.NewReader(creds)
+		return privErr(cmd.CombinedOutput())
+	case "down":
+		return privErr(privCmd("hotspot", "down").CombinedOutput())
+	}
+	return fmt.Errorf("unknown hotspot command %q", args[0])
+}
+
+// privErr turns a failed ryoku-priv run into its own message.
+func privErr(out []byte, err error) error {
+	if err == nil {
+		return nil
+	}
+	if msg := strings.TrimSpace(string(out)); msg != "" {
+		return errors.New(msg)
+	}
+	return err
 }

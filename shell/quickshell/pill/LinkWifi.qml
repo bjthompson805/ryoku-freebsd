@@ -460,7 +460,7 @@ Item {
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: WifiLink.hsBusy ? "…" : (WifiLink.hsActive ? "Active" : "Off")
+                        text: WifiLink.hsBusy ? "…" : (WifiLink.hsActive ? "Active" : (WifiLink.hsError.length ? "Failed" : "Off"))
                         color: WifiLink.hsActive ? Theme.flameGlow : Theme.dim
                         font.family: Theme.font
                         font.pixelSize: 9.5 * root.s

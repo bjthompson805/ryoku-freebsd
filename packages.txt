@@ -44,6 +44,9 @@ setsid
 xdg-utils
 kitty
 
+# Wi-Fi hotspot: DHCP and DNS for the devices that join (hostapd is in base)
+dnsmasq
+
 # terminal: fish with the starship prompt and the branded fastfetch readout
 fish
 starship

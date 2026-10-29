@@ -15,7 +15,8 @@ import Quickshell.Io
 // route and the wpa_supplicant scan list as one JSON line per change.
 // Connecting pipes the password on stdin so it never lands in a process
 // argument list; a new network that fails to join is removed by the backend.
-// The hotspot half still drives a NetworkManager profile through nmcli.
+// The hotspot half drives `ryoku-shell wifi hotspot`, name and password on
+// stdin for the same reason.
 Singleton {
     id: root
 
@@ -66,14 +67,16 @@ Singleton {
 
     // ---- hotspot --------------------------------------------------------
 
-    // hsCon = the NM profile name Ryoku owns; everything else is read from
-    // that profile or driven into it by applyHotspot/stopHotspot.
-    readonly property string hsCon: "RyokuHotspot"
-    readonly property string hsIface: st.iface || "wlan0"
+    // the access point is its own interface, ryokuap0, cloned off the Wi-Fi
+    // device while the hotspot is up; name and password persist in the
+    // backend's state file.
+    readonly property string hsIface: "ryokuap0"
     property string hsName: "Ryoku"
     property string hsPw: ""
     property bool hsActive: false
     property bool hsBusy: false
+    // why the last start failed (no AP support, pf rules, ...), "" if not.
+    property string hsError: ""
     property string hsEdit: ""
     property string hsDraft: ""
 
@@ -235,23 +238,13 @@ Singleton {
 
     // ---- hotspot ----------------------------------------------------------
 
-    // bring the shared AP up with the current name/pw. creates the persistent
-    // connection on first use, modifies it after. name and pw are positional
-    // args, never spliced into the shell string -- a weird char can't break or
-    // inject the command.
+    // bring the shared AP up with the current name/pw, restarting it if it is
+    // already up. both go over stdin, never argv.
     function applyHotspot() {
         if (root.hsBusy || root.hsPw.length < 8)
             return;
         root.hsBusy = true;
-        hsApplyProc.command = ["sh", "-c",
-            'c="' + root.hsCon + '"; '
-            + 'if nmcli -t connection show "$c" >/dev/null 2>&1; then '
-            +   'nmcli connection modify "$c" 802-11-wireless.ssid "$1" 802-11-wireless-security.key-mgmt wpa-psk 802-11-wireless-security.psk "$2"; '
-            + 'else '
-            +   'nmcli connection add type wifi ifname "$3" con-name "$c" autoconnect no 802-11-wireless.ssid "$1" 802-11-wireless.mode ap 802-11-wireless-security.key-mgmt wpa-psk 802-11-wireless-security.psk "$2" ipv4.method shared; '
-            + 'fi; '
-            + 'nmcli connection up "$c"',
-            "sh", root.hsName, root.hsPw, root.hsIface];
+        root.hsError = "";
         hsApplyProc.running = true;
     }
 
@@ -264,7 +257,6 @@ Singleton {
 
     function refreshHotspot() {
         hsStateProc.running = true;
-        hsReadProc.running = true;
     }
 
     // commit an inline name/pw edit. pw shorter than the WPA2 minimum (8) is
@@ -295,15 +287,20 @@ Singleton {
 
     Process {
         id: hsApplyProc
-        onExited: {
+        command: ["ryoku-shell", "wifi", "hotspot", "up"]
+        stdinEnabled: true
+        stderr: StdioCollector { id: hsApplyErr }
+        onStarted: write(root.hsName + "\n" + root.hsPw + "\n")
+        onExited: function(exitCode) {
             root.hsBusy = false;
+            root.hsError = exitCode === 0 ? "" : hsApplyErr.text.replace(/^ryoku-shell wifi: /, "").trim();
             root.refreshHotspot();
         }
     }
 
     Process {
         id: hsDownProc
-        command: ["nmcli", "connection", "down", root.hsCon]
+        command: ["ryoku-shell", "wifi", "hotspot", "down"]
         onExited: {
             root.hsBusy = false;
             root.refreshHotspot();
@@ -312,22 +309,17 @@ Singleton {
 
     Process {
         id: hsStateProc
-        command: ["sh", "-c", "nmcli -t -f NAME connection show --active | grep -qxF -- \"$1\" && echo on || echo off", "sh", root.hsCon]
-        stdout: StdioCollector {
-            onStreamFinished: root.hsActive = this.text.trim() === "on"
-        }
-    }
-
-    Process {
-        id: hsReadProc
-        command: ["nmcli", "-t", "-s", "-g", "802-11-wireless.ssid,802-11-wireless-security.psk", "connection", "show", root.hsCon]
+        command: ["ryoku-shell", "wifi", "hotspot", "status"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var lines = this.text.split("\n");
-                if (lines.length >= 1 && lines[0].length)
-                    root.hsName = lines[0];
-                if (lines.length >= 2 && lines[1].length)
-                    root.hsPw = lines[1];
+                try {
+                    var h = JSON.parse(this.text);
+                    root.hsActive = h.active;
+                    if (h.name)
+                        root.hsName = h.name;
+                    if (h.password)
+                        root.hsPw = h.password;
+                } catch (e) {}
             }
         }
     }

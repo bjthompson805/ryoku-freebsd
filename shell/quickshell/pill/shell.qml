@@ -195,7 +195,7 @@ ShellRoot {
 
     // game mode's compositor + WiFi tuning lives outside the shell, same
     // shape as Keep-Awake. ryoku-cmd-game-mode drives hyprctl and
-    // NetworkManager so the tuning survives a shell reload and re-applies
+    // ryoku-priv so the tuning survives a shell reload and re-applies
     // after a relogin. DND is the shell's own (handled in Flags); deck
     // toggle just flips Flags.gameMode.
     readonly property string gameModeScript: (Quickshell.env("HOME") || "") + "/.config/hypr/scripts/ryoku-cmd-game-mode"

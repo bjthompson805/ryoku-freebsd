@@ -12,11 +12,117 @@
 #   ryoku-priv wifi-powersave off|on
 #                                  game mode: keep the Wi-Fi radio awake, then
 #                                  restore the power save it had before
+#   ryoku-priv hotspot up|down     share the default route over Wi-Fi; up
+#                                  reads the network name and the password
+#                                  from stdin, one line each
 set -eu
 
 ps_prev=/var/run/ryoku-wifi-powersave.prev
 
+# the hotspot is an access-point clone of the Wi-Fi device, renamed so the
+# station-side code (which looks for wlan*) never mistakes it for the uplink.
+# hostapd runs WPA2 on it, dnsmasq hands out addresses and DNS, and pf NATs
+# the clients out the default route. everything it started is recorded in
+# hs_dir, so down undoes exactly that.
+hs_dir=/var/run/ryoku-hotspot
+hs_if=ryokuap0
+hs_net=10.42.0
+
+hotspot_down() {
+  for p in dnsmasq hostapd; do
+    if [ -r "$hs_dir/$p.pid" ]; then kill "$(cat "$hs_dir/$p.pid")" 2>/dev/null || true; fi
+  done
+  if [ -e "$hs_dir/pf-owned" ]; then
+    pfctl -q -F all 2>/dev/null || true
+    pfctl -q -d 2>/dev/null || true
+  elif [ -e "$hs_dir/pf-anchor" ]; then
+    pfctl -q -a ryoku-hotspot -F all 2>/dev/null || true
+  fi
+  if [ -r "$hs_dir/forwarding" ]; then
+    sysctl net.inet.ip.forwarding="$(cat "$hs_dir/forwarding")" >/dev/null || true
+  fi
+  ifconfig "$hs_if" destroy 2>/dev/null || true
+  rm -rf "$hs_dir"
+}
+
+hotspot_fail() {
+  echo "$*" >&2
+  hotspot_down
+  exit 1
+}
+
+hotspot_up() {
+  export LC_ALL=C
+  IFS= read -r name || true
+  IFS= read -r pw || true
+  case "$name" in ""|*[[:cntrl:]]*) hotspot_fail "the network name is empty or has control characters" ;; esac
+  [ ${#name} -le 32 ] || hotspot_fail "the network name is longer than 32 bytes"
+  case "$pw" in *[![:print:]]*) hotspot_fail "the password must be printable ASCII" ;; esac
+  [ ${#pw} -ge 8 ] && [ ${#pw} -le 63 ] || hotspot_fail "the password must be 8 to 63 characters"
+
+  ext=$(route -n get default 2>/dev/null | awk '$1 == "interface:" { print $2 }')
+  case "$ext" in ""|*[!a-zA-Z0-9.]*) hotspot_fail "there is no internet connection to share" ;; esac
+  parent=$(sysctl -n net.wlan.devices 2>/dev/null | awk '{ print $1 }')
+  [ -n "$parent" ] || hotspot_fail "there is no Wi-Fi device"
+
+  hotspot_down
+  mkdir -m 755 "$hs_dir"
+
+  # an access point and a station on one radio must share its channel.
+  chan=6
+  for i in $(ifconfig -g wlan); do
+    if ifconfig "$i" | grep -q 'status: associated'; then
+      c=$(ifconfig "$i" | sed -nE 's/.*[[:space:]]channel ([0-9]+) .*/\1/p' | head -1)
+      [ -n "$c" ] && chan=$c && break
+    fi
+  done
+  mode=g
+  [ "$chan" -gt 14 ] && mode=a
+
+  new=$(ifconfig wlan create wlandev "$parent" wlanmode hostap 2>/dev/null) ||
+    hotspot_fail "$parent cannot run an access point"
+  ifconfig "$new" name "$hs_if" >/dev/null
+  ifconfig "$hs_if" inet "$hs_net.1/24" up
+
+  ssid=$(printf %s "$name" | od -An -v -tx1 | tr -d ' \n')
+  (
+    umask 077
+    printf '%s\n' "interface=$hs_if" driver=bsd "ssid2=$ssid" "hw_mode=$mode" "channel=$chan" \
+      wpa=2 wpa_key_mgmt=WPA-PSK rsn_pairwise=CCMP "wpa_passphrase=$pw" >"$hs_dir/hostapd.conf"
+  )
+  hostapd -B -P "$hs_dir/hostapd.pid" "$hs_dir/hostapd.conf" >/dev/null 2>&1 ||
+    hotspot_fail "hostapd could not start the access point"
+  dnsmasq --conf-file=/dev/null --interface="$hs_if" --except-interface=lo0 --bind-interfaces \
+    --dhcp-range="$hs_net.10,$hs_net.200,12h" --dhcp-leasefile="$hs_dir/leases" \
+    --pid-file="$hs_dir/dnsmasq.pid" ||
+    hotspot_fail "dnsmasq could not start"
+
+  sysctl -n net.inet.ip.forwarding >"$hs_dir/forwarding"
+  sysctl net.inet.ip.forwarding=1 >/dev/null
+
+  # pf already running means the user has rules of their own: load into an
+  # anchor they reference rather than replacing them.
+  nat="nat on $ext inet from $hs_net.0/24 to any -> ($ext)"
+  if pfctl -s info 2>/dev/null | grep -q 'Status: Enabled'; then
+    pfctl -s Anchors 2>/dev/null | grep -q ryoku-hotspot ||
+      hotspot_fail 'pf is running with your own rules: add nat-anchor "ryoku-hotspot" and anchor "ryoku-hotspot" to /etc/pf.conf'
+    printf '%s\n' "$nat" | pfctl -q -a ryoku-hotspot -f - || hotspot_fail "pf rejected the NAT rule"
+    : >"$hs_dir/pf-anchor"
+  else
+    kldload -n pf
+    : >"$hs_dir/pf-owned"
+    printf '%s\npass all\n' "$nat" | pfctl -q -f - || hotspot_fail "pf rejected the NAT rule"
+    pfctl -q -e
+  fi
+}
+
 case "${1:-} ${2:-}" in
+  "hotspot up")
+    hotspot_up
+    ;;
+  "hotspot down")
+    hotspot_down
+    ;;
   "wifi on")
     for i in $(ifconfig -g wlan); do ifconfig "$i" up; done
     ;;
@@ -54,7 +160,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,14p' "$0" >&2
+    sed -n '7,17p' "$0" >&2
     exit 2
     ;;
 esac

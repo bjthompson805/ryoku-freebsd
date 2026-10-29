@@ -4,13 +4,13 @@ import QtQuick
 import QtQuick.Controls
 import "Singletons"
 
-// Hotspot subtab of Connections: brings the persistent `RyokuHotspot`
-// NetworkManager profile up/down through nmcli, with an editable SSID + WPA2
-// password. state and credentials read straight from NM on entry, so the page
-// always reflects what the system thinks.
+// Hotspot subtab of Connections: brings an access point up/down through
+// `ryoku-shell wifi hotspot`, with an editable SSID + WPA2 password. state
+// and credentials are read back on entry, so the page always reflects what
+// the system thinks.
 //
-// the nmcli wire protocol, state, and apply/stop/edit flow all live in the
-// shared WifiLink singleton (see ryoku/shared/quickshell/WifiLink.qml) --
+// the backend calls, state, and apply/stop/edit flow all live in the
+// shared WifiLink singleton (see shared/quickshell/WifiLink.qml) --
 // identical to the pill's LinkWifi hotspot block, so this page and that
 // drill-in agree on them instead of racing separate copies. only the layout
 // here is recast for the full hub content area + warm Theme.
@@ -28,8 +28,21 @@ Item {
         spacing: 6
 
         Text {
-            text: "Share this machine's connection as a Wi-Fi hotspot. NetworkManager owns the profile (named " + WifiLink.hsCon + "); changes to the network name or password apply at once when the hotspot is live."
+            text: WifiLink.present
+                ? "Share this machine's connection as a Wi-Fi hotspot. Changes to the network name or password apply at once when the hotspot is live. Not every Wi-Fi card can run an access point."
+                : "No Wi-Fi adapter found."
             color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: 12
+            font.weight: Font.Medium
+            width: Math.min(parent.width, 640)
+            wrapMode: Text.WordWrap
+        }
+
+        Text {
+            visible: WifiLink.hsError.length > 0
+            text: WifiLink.hsError
+            color: Theme.ember
             font.family: Theme.font
             font.pixelSize: 12
             font.weight: Font.Medium
@@ -101,7 +114,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 64
                 checked: WifiLink.hsActive
-                enabled: !WifiLink.hsBusy
+                enabled: !WifiLink.hsBusy && WifiLink.present
                 highlightId: "hotspot_toggle"
                 onToggled: {
                     if (WifiLink.hsActive) {
