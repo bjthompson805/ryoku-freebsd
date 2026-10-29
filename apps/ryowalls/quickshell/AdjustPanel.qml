@@ -189,7 +189,7 @@ Item {
                     spacing: 8
                     visible: Wallhaven.upscaleSupported && !Wallhaven.upscaler
                     HubButton { icon: "download"; label: "Install enhancer"; onClicked: Wallhaven.installUpscaler() }
-                    Text { width: parent.width; wrapMode: Text.WordWrap; text: "Opens gpk to install waifu2x (Vulkan). It doubles resolution and denoises images and, frame by frame, video."; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 }
+                    Text { width: parent.width; wrapMode: Text.WordWrap; text: "Opens a terminal to install waifu2x (Vulkan) with pkg. It doubles resolution and denoises images and, frame by frame, video."; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 }
                 }
 
                 Column {

@@ -32,7 +32,7 @@ Singleton {
     }
 
     // Bumped by async providers when a background query resolves; the launcher's
-    // results binding reads it so a late result (qalc, fd, gpk, music) repaints
+    // results binding reads it so a late result (qalc, fd, pkg, music) repaints
     // without the user retyping.
     property int revision: 0
     function notifyAsync() { root.revision++; }

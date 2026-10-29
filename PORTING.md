@@ -8,7 +8,6 @@ What still assumes Linux. Delete a line when it is done.
 
 ## Linux tools with a FreeBSD equivalent
 
-- Package search via `gpk` (pacman/yay): `launcher/providers/packages/Packages.qml`. Port to `pkg search`.
 - Battery via upower: `pill/Singletons/Battery.qml`. Check upower's FreeBSD backend, else `acpiconf -i 0`.
 
 ## No FreeBSD equivalent

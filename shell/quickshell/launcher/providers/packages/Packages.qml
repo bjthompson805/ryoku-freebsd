@@ -2,14 +2,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../../Singletons"
-import "gpk.js" as Gpk
+import "pkg.js" as Pkg
 import ".."
 
-// Package provider backed by GPK (`gpk search --json`), which spans every package
-// manager gpk wraps. Routed by "/" is the actions panel; packages use explicit
-// "install "/"remove "/"search " queries (matching inir) so a plain search never
-// forks gpk. Search is async + cached; installs/removes spawn a terminal because
-// gpk needs a tty for the privilege prompt (see gpk-launcher-backend-notes).
+// Package provider backed by pkg(8): `pkg rquery` over the repository
+// catalogue plus `pkg query` for what is installed, both local and answering
+// in well under a second. Routed by "/" is the actions panel; packages use
+// explicit "install "/"remove "/"search " queries (matching inir) so a plain
+// search never forks pkg. Search is async + cached; installs/removes spawn a
+// terminal because pkg needs root and the sudo/doas prompt needs a tty.
 Provider {
     id: packages
 
@@ -25,7 +26,7 @@ Provider {
     readonly property string terminal: "kitty"
 
     // text after ">": "search x" / "install x" / "remove x", or a bare query that
-    // defaults to search. So ">yay" searches, ">install yay" installs.
+    // defaults to search. So ">fish" searches, ">install fish" installs.
     function parseOp(text) {
         var m = String(text || "").match(/^(install|remove|search)\s+(.+)$/i);
         if (m)
@@ -52,12 +53,14 @@ Provider {
                 name: verb,
                 icon: "",
                 execute: function () {
-                    var gpkOp = op === "remove" ? "remove" : "install";
-                    Spawn.spawn([packages.terminal, "-e", "gpk", gpkOp, pkg.name], { id: "pkg:" + pkg.source + ":" + pkg.name });
+                    var pkgOp = op === "remove" ? "delete" : "install";
+                    // the name is a positional arg, never spliced into the script.
+                    Spawn.spawn([packages.terminal, "--hold", "-e", "sh", "-c",
+                        'if command -v doas >/dev/null 2>&1; then doas pkg "$1" "$2"; else sudo pkg "$1" "$2"; fi',
+                        "sh", pkgOp, pkg.name], { id: "pkg:" + pkg.source + ":" + pkg.name });
                     // the install/remove will change what a re-search should
                     // show; drop the cached rows so the next query refetches.
                     packages.cachedQuery = "";
-                    packages.fullFor = "";
                 }
             }]
         };
@@ -70,7 +73,9 @@ Provider {
         if (!p || p.term.length < 2)
             return [];
         if (p.term === packages.cachedQuery)
-            return packages.cachedRows.map(function (pkg) { return packages.rowFor(pkg, p.op); });
+            return packages.cachedRows
+                .filter(function (pkg) { return p.op !== "remove" || pkg.installed; })
+                .map(function (pkg) { return packages.rowFor(pkg, p.op); });
         packages.pendingQuery = p.term;
         debounce.restart();
         return [];
@@ -81,47 +86,15 @@ Provider {
         interval: 120
         repeat: false
         onTriggered: {
-            packages.fullFor = "";
             searchProc.term = packages.pendingQuery;
             searchProc.running = false;
             searchProc.running = true;
-            fastProc.term = packages.pendingQuery;
-            fastProc.running = false;
-            fastProc.running = true;
-        }
-    }
-
-    // Fast lane: pacman/aur answer from gpk's scan cache in well under a
-    // second, while the full sweep hits live registries (npm, cargo, pip...)
-    // and can take tens of seconds. Local rows show immediately; the full
-    // set replaces them when it lands. fullFor marks a term the full sweep
-    // has already answered so a slow fast-lane result never regresses it.
-    property string fullFor: ""
-
-    Process {
-        id: fastProc
-        property string term: ""
-        property string out: ""
-        command: ["gpk", "search", term, "--json", "--limit", "30", "--manager", "pacman,aur"]
-        stdout: SplitParser {
-            onRead: data => fastProc.out += data + "\n"
-        }
-        onStarted: fastProc.out = ""
-        onExited: (code, status) => {
-            // gpk: 0 = results, 2 = clean no-results, 1 = error.
-            if (status !== 0 || code === 1)
-                return;
-            if (packages.fullFor === fastProc.term)
-                return;
-            packages.cachedQuery = fastProc.term;
-            packages.cachedRows = Gpk.parse(fastProc.out);
-            Dispatcher.notifyAsync();
         }
     }
 
     Process {
         id: availProc
-        command: ["gpk", "search", "--help"]
+        command: ["pkg", "-N"]
         onExited: (code) => { packages.available = (code === 0); }
     }
 
@@ -130,20 +103,19 @@ Provider {
         onRunningChanged: Dispatcher.setBusy("packages", running)
         property string term: ""
         property string out: ""
-        command: ["gpk", "search", term, "--json", "--limit", "30"]
+        command: ["sh", "-c",
+            "pkg rquery -i -x 'R\t%n\t%v\t%R\t%c' \"$1\" 2>/dev/null; pkg query -i -x 'I\t%n\t%v\t%R\t%c' \"$1\" 2>/dev/null; true",
+            "sh", Pkg.escapeRegex(term)]
         stdout: SplitParser {
             onRead: data => searchProc.out += data + "\n"
         }
         onStarted: searchProc.out = ""
         onExited: (code, status) => {
-            // killed = superseded; exit 1 = gpk failure. Cache neither, so a
-            // transient failure does not pin stale rows to a term. Exit 2 is
-            // a clean no-results run and caches like a hit.
-            if (status !== 0 || code === 1)
+            // killed = superseded; don't cache a partial read.
+            if (status !== 0)
                 return;
-            packages.fullFor = searchProc.term;
             packages.cachedQuery = searchProc.term;
-            packages.cachedRows = Gpk.parse(searchProc.out);
+            packages.cachedRows = Pkg.parse(searchProc.out, searchProc.term);
             Dispatcher.notifyAsync();
         }
     }

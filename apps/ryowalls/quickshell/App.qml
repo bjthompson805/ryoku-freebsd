@@ -25,7 +25,7 @@ Rectangle {
     readonly property bool fitOn: Wallhaven.ratios.length > 0
 
     // re-check the upscaler tools when the window regains focus, e.g. after the
-    // gpk install terminal closes, so Install clears to the toggle on its own.
+    // pkg install terminal closes, so Install clears to the toggle on its own.
     readonly property bool windowActive: Window.active
     onWindowActiveChanged: if (windowActive) Wallhaven.refreshCaps()
 

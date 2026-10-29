@@ -489,8 +489,8 @@
     },
     {
       "id": "pkg-search",
-      "name": "> searches packages across sources",
-      "covers": "packages provider gpk search",
+      "name": "> searches the pkg repositories",
+      "covers": "packages provider pkg search",
       "steps": [
         "show",
         "type >firefox",
@@ -513,7 +513,7 @@
         "settle 40"
       ],
       "asserts": [
-        "[.results[] | select((.title | test(\"^kitty\\\\s\")) and (.subtitle | test(\"^pacman\\\\s+\\\\(installed\\\\)\")))] | length >= 1"
+        "[.results[] | select((.title | test(\"^kitty\\\\s\")) and (.subtitle | test(\"^FreeBSD-ports\\\\s+\\\\(installed\\\\)\")))] | length >= 1"
       ],
       "screenshot": true,
       "network": true
@@ -533,21 +533,18 @@
       ]
     },
     {
-      "id": "pkg-fast-lane",
-      "name": "Package search shows local pacman/aur rows within seconds",
-      "covers": "packages two-phase fast lane",
+      "id": "pkg-fast",
+      "name": "Package search answers within seconds, exact name first",
+      "covers": "packages local catalogue search + ranking",
       "steps": [
         "show",
         "type >ripgrep",
-        "settle 8"
+        "settle 3"
       ],
       "asserts": [
-        "[.results[] | select(.title | test(\"^ripgrep\"))] | length >= 1"
+        ".results[0].title | test(\"^ripgrep\\\\s\")"
       ],
-      "screenshot": true,
-      "teardown": [
-        "for i in $(seq 45); do pgrep -f 'gpk search' >/dev/null || break; sleep 1; done"
-      ]
+      "screenshot": true
     },
     {
       "id": "web-prefix-answer",
