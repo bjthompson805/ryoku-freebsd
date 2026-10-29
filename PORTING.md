@@ -4,9 +4,10 @@ What still assumes Linux. Delete a line when it is done.
 
 ## No FreeBSD equivalent
 
-- Bluetooth: `Quickshell.Bluetooth` talks to BlueZ, which FreeBSD lacks. `shared/BluetoothLink.qml`, `pill/LinkBt.qml`, `hub/BluetoothTab.qml` should hide when no adapter appears.
+These stay in the code but hide themselves, since FreeBSD has nothing for them to talk to.
+
+- Bluetooth: `Quickshell.Bluetooth` talks to BlueZ, which FreeBSD lacks, so no adapter appears. The Link row, the deck toggle and the Hub tab hide; the bar's icon was already gated. Quickshell still logs one org.bluez warning at start.
 - External monitor brightness: `ddcutil` needs Linux's `/dev/i2c-*` and has no FreeBSD port. `shared/Devices.qml` finds no monitors without it, so the faders stay hidden.
-- Power profiles: Quickshell's PowerProfiles service needs `power-profiles-daemon`, which FreeBSD lacks. Find what uses it and hide it, or back it with `powerd`/`powerdxx`.
 
 ## Not yet verified on hardware
 

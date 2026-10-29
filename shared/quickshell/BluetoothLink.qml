@@ -13,9 +13,10 @@ import Quickshell.Bluetooth
 // same-named local singleton in this same Singletons/ dir would shadow it.
 // The adapter/device objects are already global via Quickshell.Bluetooth;
 // this centralises the bluetoothctl pair-trust-connect script, the
-// rfkill-unblock-then-power toggle flow, the scan auto-stop, and the
-// bluetoothd service-repair path, so every surface agrees on scan/pair/service
-// state instead of racing separate copies of it.
+// rfkill-unblock-then-power toggle flow and the scan auto-stop, so every
+// surface agrees on scan/pair state instead of racing separate copies of it.
+// FreeBSD has no BlueZ, so there is normally no adapter and every surface
+// hides its Bluetooth controls (hasAdapter).
 Singleton {
     id: root
 
@@ -35,7 +36,6 @@ Singleton {
                 n++;
         return n;
     }
-    readonly property bool startingService: svcProc.running
 
     // BlueZ hands the cache out in arbitrary order. sort connected first, then
     // paired, then named devices, nameless MACs last, so a scan doesn't churn
@@ -54,7 +54,6 @@ Singleton {
 
     property string pairingAddress: ""
     property string failedAddress: ""
-    property bool serviceFailed: false
 
     function metaFor(d) {
         if (!d) return "";
@@ -172,16 +171,6 @@ Singleton {
             root.adapter.discovering = false;
     }
 
-    // revive a stopped bluetoothd (service disabled by hand, or an install
-    // predating the bluez dependency). pkexec raises the polkit prompt
-    // (hyprpolkitagent); enable --now so it also survives the next boot.
-    function startService() {
-        if (svcProc.running)
-            return;
-        root.serviceFailed = false;
-        svcProc.running = true;
-    }
-
     Timer {
         id: scanTimer
         interval: 25000
@@ -194,13 +183,6 @@ Singleton {
         interval: 4000
         repeat: false
         onTriggered: root.failedAddress = ""
-    }
-
-    Timer {
-        id: svcFailTimer
-        interval: 6000
-        repeat: false
-        onTriggered: root.serviceFailed = false
     }
 
     Process {
@@ -237,18 +219,5 @@ Singleton {
         id: unblockProc
         command: ["rfkill", "unblock", "bluetooth"]
         onExited: if (root.adapter) root.adapter.enabled = true
-    }
-
-    Process {
-        id: svcProc
-        command: ["pkexec", "systemctl", "enable", "--now", "bluetooth.service"]
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
-        onExited: function(exitCode) {
-            if (exitCode !== 0) {
-                root.serviceFailed = true;
-                svcFailTimer.restart();
-            }
-        }
     }
 }

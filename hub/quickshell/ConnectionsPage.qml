@@ -14,11 +14,12 @@ Item {
         id: tabs
         anchors.left: parent.left
         anchors.top: parent.top
+        // no BlueZ on FreeBSD usually means no adapter, so no Bluetooth tab.
         model: [
             { "key": "wifi", "label": "Wi-Fi" },
             { "key": "bluetooth", "label": "Bluetooth" },
             { "key": "hotspot", "label": "Hotspot" }
-        ]
+        ].filter((t) => t.key !== "bluetooth" || BluetoothLink.hasAdapter)
         current: page.sub
         onSelected: (k) => page.sub = k
     }

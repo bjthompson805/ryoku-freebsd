@@ -178,7 +178,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: !BluetoothLink.hasAdapter || !page.adapterOn || (!BluetoothLink.discovering && BluetoothLink.devices.length === 0)
-                text: !BluetoothLink.hasAdapter ? "The bluetooth service (bluez) isn't running."
+                text: !BluetoothLink.hasAdapter ? "No Bluetooth adapter: FreeBSD has no BlueZ, which this page needs."
                     : BluetoothLink.blocked ? "The radio is off at the hardware level (rfkill); the toggle unblocks it."
                     : !page.adapterOn ? "Turn the adapter on to see nearby and paired devices."
                     : "Hit Scan to discover nearby devices."
@@ -188,41 +188,6 @@ Item {
                 font.weight: Font.Medium
             }
 
-            // service repair, shown only when org.bluez is missing entirely.
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: !BluetoothLink.hasAdapter
-                radius: height / 2
-                height: 32
-                width: svcLbl.implicitWidth + 32
-                color: svcHov.hovered && !BluetoothLink.startingService ? Theme.keyTop : "transparent"
-                border.width: 1
-                border.color: BluetoothLink.startingService ? Theme.ember : (svcHov.hovered ? Theme.ember : Theme.line)
-                Behavior on border.color { ColorAnimation { duration: Theme.quick } }
-
-                Text {
-                    id: svcLbl
-                    anchors.centerIn: parent
-                    text: BluetoothLink.startingService ? "Starting…" : "Start service"
-                    color: BluetoothLink.startingService ? Theme.ember : (svcHov.hovered ? Theme.bright : Theme.cream)
-                    font.family: Theme.font
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
-
-                HoverHandler { id: svcHov; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: BluetoothLink.startService() }
-            }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: BluetoothLink.serviceFailed
-                text: "Could not start the bluetooth service."
-                color: Theme.ember
-                font.family: Theme.font
-                font.pixelSize: 12
-                font.weight: Font.Medium
-            }
         }
 
         Flickable {

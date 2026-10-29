@@ -47,7 +47,17 @@ Item {
             m[root.catalog[i].key] = root.catalog[i];
         return m;
     }
-    readonly property var enabled: (Config.sidebarToggles || []).map(k => root.catalogByKey[k]).filter(Boolean)
+    // radio toggles need the radio: no wlan interface hides Wi-Fi, no BlueZ
+    // adapter (the FreeBSD norm) hides Bluetooth, and airplane needs either.
+    function available(key) {
+        switch (key) {
+            case "wifi": return WifiLink.present;
+            case "bluetooth": return root.deck.btAdapter !== null;
+            case "airplane": return WifiLink.present || root.deck.btAdapter !== null;
+        }
+        return true;
+    }
+    readonly property var enabled: (Config.sidebarToggles || []).map(k => root.catalogByKey[k]).filter(c => c && root.available(c.key))
     readonly property bool hasOverflow: root.enabled.length > root.collapsedCount
 
     function glyphFor(key) {

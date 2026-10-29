@@ -134,23 +134,13 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 6 * root.s
             anchors.verticalCenter: parent.verticalCenter
-            text: !BluetoothLink.hasAdapter
-                ? (BluetoothLink.startingService ? "Starting service…"
-                    : (BluetoothLink.serviceFailed ? "Couldn't start the service" : "Service off — tap to start"))
+            text: !BluetoothLink.hasAdapter ? "No Bluetooth adapter"
                 : (BluetoothLink.blocked ? "Blocked (rfkill) — toggle to unblock"
                     : (BluetoothLink.discovering ? "Scanning…" : "No devices"))
-            color: !BluetoothLink.hasAdapter && !BluetoothLink.startingService && !BluetoothLink.serviceFailed ? Theme.subtle : Theme.dim
+            color: Theme.dim
             font.family: Theme.font
             font.pixelSize: 11 * root.s
             font.weight: Font.Medium
-
-            MouseArea {
-                anchors.fill: parent
-                anchors.margins: -6 * root.s
-                visible: !BluetoothLink.hasAdapter && !BluetoothLink.startingService
-                cursorShape: Qt.PointingHandCursor
-                onClicked: BluetoothLink.startService()
-            }
         }
 
         Flickable {

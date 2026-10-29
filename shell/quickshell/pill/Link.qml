@@ -80,8 +80,7 @@ PillSurface {
     readonly property var btPrimary: btConnected.length > 0 ? btConnected[0] : null
     readonly property int btBattery: batteryLevel(btPrimary)
 
-    readonly property string btSubText: !btAdapter ? "Service off"
-        : !btOn ? "Off"
+    readonly property string btSubText: !btOn ? "Off"
         : (btPrimary
             ? ((btPrimary.deviceName || btPrimary.name || "Unknown")
                 + (btConnected.length > 1 ? " +" + (btConnected.length - 1) : ""))
@@ -273,6 +272,8 @@ PillSurface {
 
             Rectangle {
                 id: btRow
+                // FreeBSD has no BlueZ, so there is usually no adapter to show.
+                visible: root.btAdapter !== null
                 width: parent.width
                 height: 44 * root.s
                 radius: Theme.radius
