@@ -58,7 +58,8 @@ if [ $system -eq 1 ]; then
   done
 
   # ryoku-priv: the desktop's only root entry point (lid behaviour, the
-  # webcam kill switch), passwordless for this user and this file only.
+  # webcam kill switch, game mode's Wi-Fi power save), passwordless for this
+  # user and this file only.
   $as_root install -o root -g wheel -m 755 "$repo/system/ryoku-priv" /usr/local/libexec/ryoku-priv
   if [ "$as_root" = doas ]; then
     rule="permit nopass $(id -un) as root cmd /usr/local/libexec/ryoku-priv"

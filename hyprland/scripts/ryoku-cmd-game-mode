@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 力 game mode = one reversible toggle. competitive-play tune on start, back
 # to normal on stop. compositor via `hyprctl eval` (no root). wifi
-# power-save flipped by the privileged ryoku-wifi-powersave through pkexec
-# (polkit pre-auths it, no password, toggle stays one click). dnd is the
+# power-save flipped by ryoku-priv, which install.sh lets run without a
+# password, so the toggle stays one click. dnd is the
 # shell's job (Flags.dnd) and bridges in here, same as ryoku-cmd-caffeine.
 #
 #   status   exit 0 = on
@@ -18,7 +18,7 @@
 # missing file or key means on, so out of the box it is the full tune.
 #
 # revert = exact. compositor changes are runtime eval overrides; `hyprctl
-# reload` rereads Lua and clears them, so nothing to track. the wifi helper
+# reload` rereads Lua and clears them, so nothing to track. ryoku-priv
 # saves + restores the prior power-save state. `start` is safe to re-run
 # after a relogin (Hyprland comes back fresh from Lua, request is still on
 # disk).
@@ -72,20 +72,22 @@ hypr_restore() {
 # ── wifi (latency only, never a cap) ──────────────────────────────────────────
 # 802.11 power-save off = radio stays fully awake. kills the periodic
 # micro-sleeps that spike latency on an idle link. does NOT shape, cap, or
-# drop the link, so throughput is untouched. the privileged helper does it
-# via iw with no reconnect and saves + restores the prior state. no wifi or
-# no helper = no-op.
+# drop the link, so throughput is untouched. ryoku-priv does it via ifconfig
+# with no reconnect and saves + restores the prior state. no wifi or no
+# ryoku-priv = no-op.
 has_wifi() {
-  local w
-  for w in "${RYOKU_NET_SYSFS:-/sys/class/net}"/*/wireless; do [[ -e $w ]] && return 0; done
-  return 1
+  [[ -n $(ifconfig -g wlan 2>/dev/null) ]]
+}
+
+priv() {
+  if command -v doas >/dev/null 2>&1; then doas -n /usr/local/libexec/ryoku-priv "$@"
+  else sudo -n /usr/local/libexec/ryoku-priv "$@"; fi
 }
 
 wifi_set() {  # off | on
-  local helper
-  helper="$(command -v ryoku-wifi-powersave)" || return 0
+  [[ -x /usr/local/libexec/ryoku-priv ]] || return 0
   has_wifi || return 0
-  pkexec "$helper" "$1" >/dev/null 2>&1 || true
+  priv wifi-powersave "$1" >/dev/null 2>&1 || true
 }
 
 # the helper's `off` re-saves the current state, so a second run would record

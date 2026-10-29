@@ -8,9 +8,29 @@
 #   ryoku-priv webcam on|off       start or stop webcamd and keep it that way
 #   ryoku-priv pkg-update          refresh the package catalogue, so the
 #                                  background update check sees new versions
+#   ryoku-priv wifi-powersave off|on
+#                                  game mode: keep the Wi-Fi radio awake, then
+#                                  restore the power save it had before
 set -eu
 
+ps_prev=/var/run/ryoku-wifi-powersave.prev
+
 case "${1:-} ${2:-}" in
+  "wifi-powersave off")
+    : >"$ps_prev"
+    for i in $(ifconfig -g wlan); do
+      ifconfig -v "$i" | grep -q 'powersavemode PSP' && echo "$i" >>"$ps_prev"
+      ifconfig "$i" -powersave || true
+    done
+    ;;
+  "wifi-powersave on")
+    if [ -r "$ps_prev" ]; then
+      while read -r i; do
+        case "$i" in wlan[0-9]*) ifconfig "$i" powersave || true ;; esac
+      done <"$ps_prev"
+    fi
+    rm -f "$ps_prev"
+    ;;
   "pkg-update ")
     exec pkg update -q
     ;;
@@ -27,7 +47,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,10p' "$0" >&2
+    sed -n '7,13p' "$0" >&2
     exit 2
     ;;
 esac

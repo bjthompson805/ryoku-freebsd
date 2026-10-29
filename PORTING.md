@@ -9,8 +9,6 @@ What still assumes Linux. Delete a line when it is done.
 ## Linux tools with a FreeBSD equivalent
 
 - Wi-Fi via `nmcli`: `shared/WifiLink.qml`, `pill/Singletons/Network.qml`, `pill/LinkWifi.qml`, `pill/popouts/NetworkPopout.qml`, `hub/WifiTab.qml`, `hub/HotspotTab.qml`. Port to `ifconfig wlan0 scan` + `wpa_cli`. Quickshell's own network service has no FreeBSD backend either.
-- `/proc` and `/sys` reads: `pill/Singletons/SysStats.qml`, `NetSpeed.qml`, `LockKeys.qml`, `Keyring.qml`, `shared/WifiLink.qml`, `scripts/ryoku-sysinfo`, `scripts/ryoku-profile-stats`, `scripts/ryoku-cmd-game-mode`. Port to `sysctl`, `netstat -ibn`, `swapinfo`, `geom`.
-- `ip addr` / `ip route` / `lsblk`: `pill/popouts/NetworkPopout.qml`, `NetSpeed.qml`, `SysStats.qml`. Port to `ifconfig`, `route -n get default`, `geom disk list`.
 - Package search via `gpk` (pacman/yay): `launcher/providers/packages/Packages.qml`. Port to `pkg search`.
 - Battery via upower: `pill/Singletons/Battery.qml`. Check upower's FreeBSD backend, else `acpiconf -i 0`.
 
