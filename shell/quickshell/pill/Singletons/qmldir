@@ -9,6 +9,7 @@ singleton Devices Devices.qml
 singleton BluetoothLink BluetoothLink.qml
 singleton WifiLink WifiLink.qml
 singleton Battery Battery.qml
+singleton PowerMode PowerMode.qml
 singleton LockKeys LockKeys.qml
 singleton Vpn Vpn.qml
 singleton VoiceCall VoiceCall.qml

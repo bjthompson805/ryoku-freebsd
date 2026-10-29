@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell.Services.UPower
 import ".."
 import "../Singletons"
 
@@ -20,7 +19,7 @@ Item {
     // Battery singleton feeds itself off UPower -- but opening re-reads the
     // charge limit, which UPower doesn't carry.
     property bool open: false
-    onOpenChanged: if (open) Battery.refreshLimit()
+    onOpenChanged: if (open) { Battery.refreshLimit(); PowerMode.refresh(); }
 
     anchors.fill: parent
 
@@ -37,19 +36,12 @@ Item {
     readonly property color chargeTint: Battery.low ? Theme.vermLit
         : (Battery.charging ? Theme.flameGlow : Theme.cream)
 
-    // power-profiles-daemon tabs: Saver + Balanced always offered, Performance
-    // only when the daemon actually exposes one (absent on some hardware, or
-    // degraded by a lap/thermal hold) -- mirrors hasDetails' "don't draw a
-    // control for a feature that isn't there" rule.
-    readonly property var profileOptions: {
-        var opts = [
-            { value: PowerProfile.PowerSaver, icon: "battery_saver", label: "Saver" },
-            { value: PowerProfile.Balanced, icon: "balance", label: "Balanced" }
-        ];
-        if (PowerProfiles.hasPerformanceProfile)
-            opts.push({ value: PowerProfile.Performance, icon: "speed", label: "Perf" });
-        return opts;
-    }
+    // power profile tabs, backed by powerd through PowerMode.
+    readonly property var profileOptions: [
+        { value: "saver", icon: "battery_saver", label: "Saver" },
+        { value: "balanced", icon: "balance", label: "Balanced" },
+        { value: "performance", icon: "speed", label: "Perf" }
+    ]
 
     component Divider: Rectangle {
         width: parent ? parent.width : 0
@@ -58,9 +50,9 @@ Item {
     }
 
     // one profile tab: filled vermilion outline + tinted glyph/label when it's
-    // the active daemon profile, a plain hover wash otherwise. tapping writes
-    // straight through to PowerProfiles -- no local staging state, the daemon
-    // is the source of truth and profileChanged flips `current` back if the
+    // the active profile, a plain hover wash otherwise. tapping writes
+    // straight through to PowerMode -- no local staging state, rc.conf is
+    // the source of truth and PowerMode's re-read flips `current` back if the
     // write is rejected.
     component ProfileTab: Rectangle {
         id: tab
@@ -68,7 +60,7 @@ Item {
         required property var modelData
         property real s: 1
 
-        readonly property bool current: PowerProfiles.profile === modelData.value
+        readonly property bool current: PowerMode.profile === modelData.value
 
         height: 26 * tab.s
         radius: Theme.radius
@@ -82,7 +74,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: PowerProfiles.profile = tab.modelData.value
+            onClicked: PowerMode.set(tab.modelData.value)
         }
 
         Row {
@@ -306,8 +298,8 @@ Item {
 
         Divider {}
 
-        // profile tabs: Saver / Balanced / Performance, wired to
-        // power-profiles-daemon via PowerProfiles.
+        // profile tabs: Saver / Balanced / Performance, wired to powerd via
+        // PowerMode.
         Column {
             width: parent.width
             spacing: 7 * root.s

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
-import Quickshell.Services.UPower
 import "Singletons"
 
 // status cluster in the reference iconography: Material Symbols for volume,
@@ -188,8 +187,8 @@ Grid {
                 height: battLevel.implicitHeight
 
                 readonly property bool badged: !Battery.charging
-                    && (PowerProfiles.profile === PowerProfile.PowerSaver || PowerProfiles.profile === PowerProfile.Performance)
-                readonly property bool saver: PowerProfiles.profile === PowerProfile.PowerSaver
+                    && (PowerMode.profile === "saver" || PowerMode.profile === "performance")
+                readonly property bool saver: PowerMode.profile === "saver"
 
                 MaterialIcon {
                     id: battLevel

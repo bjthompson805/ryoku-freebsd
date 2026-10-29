@@ -20,6 +20,9 @@
 #   ryoku-priv charge-limit probe|apply|release
 #                                  check for support (install.sh), apply at
 #                                  boot, lift to 100% at shutdown if opted in
+#   ryoku-priv power-profile saver|balanced|performance
+#                                  powerd's AC and battery modes, kept in
+#                                  rc.conf so they outlive a reboot
 set -eu
 
 ps_prev=/var/run/ryoku-wifi-powersave.prev
@@ -194,16 +197,27 @@ charge_limit() {
       fi
       ;;
     *)
-      sed -n '7,22p' "$0" >&2
+      sed -n '7,25p' "$0" >&2
       exit 2
       ;;
   esac
 }
 
 case "${1:-} ${2:-}" in
+  "power-profile saver"|"power-profile balanced"|"power-profile performance")
+    # balanced is powerd's own default: hiadaptive on AC, adaptive on battery.
+    # PowerMode.qml matches these exact strings to light the right tab.
+    case "$2" in
+      saver) flags="-a adaptive -b minimum" ;;
+      balanced) flags="" ;;
+      performance) flags="-a maximum -b hiadaptive" ;;
+    esac
+    sysrc powerd_enable=YES powerd_flags="$flags" >/dev/null
+    service powerd restart >/dev/null 2>&1 || service powerd start >/dev/null
+    ;;
   "charge-limit "*)
     shift
-    [ $# -le 2 ] || { sed -n '7,22p' "$0" >&2; exit 2; }
+    [ $# -le 2 ] || { sed -n '7,25p' "$0" >&2; exit 2; }
     charge_limit "$@"
     ;;
   "hotspot up")
@@ -249,7 +263,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,22p' "$0" >&2
+    sed -n '7,25p' "$0" >&2
     exit 2
     ;;
 esac
