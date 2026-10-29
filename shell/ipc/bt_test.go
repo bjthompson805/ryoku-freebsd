@@ -124,3 +124,19 @@ func TestBtSinkProps(t *testing.T) {
 		t.Fatalf("props = %s", got)
 	}
 }
+
+func TestBtWantedSinks(t *testing.T) {
+	devs := []string{"/dev/dsp.bt739506", "/dev/dsp.bt112233", "/dev/dsp.bt"}
+	st := btStatus{Devices: []btDevice{
+		{Address: "44:5e:cd:73:95:06", Connected: true},
+		{Address: "00:00:00:11:22:33", Connected: false},
+	}}
+	got := btWantedSinks(devs, st)
+	if len(got) != 1 || got["ryoku-bt739506"] != "/dev/dsp.bt739506" {
+		t.Fatalf("connected headset: sinks = %v", got)
+	}
+	st.Devices[0].Connected = false
+	if got := btWantedSinks(devs, st); len(got) != 0 {
+		t.Fatalf("headset off: sinks = %v", got)
+	}
+}

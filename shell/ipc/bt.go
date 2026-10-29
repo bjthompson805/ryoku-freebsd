@@ -605,20 +605,14 @@ func btProfileActive(p string) bool {
 // ---- PipeWire ---------------------------------------------------------------
 
 // PipeWire's OSS scan only lists kernel pcm devices, so each virtual_oss
-// device (/dev/dsp.btXXXXXX) gets a sink declared by hand, and loses it
-// when the device goes away. The sink is named after the profile.
+// device (/dev/dsp.btXXXXXX) gets a sink declared by hand. The sink is
+// named after the profile.
 func syncBtSinks(st btStatus) {
 	if _, err := exec.LookPath("pw-cli"); err != nil {
 		return
 	}
-	want := map[string]string{}
 	devs, _ := filepath.Glob(btDevGlob)
-	for _, d := range devs {
-		p := strings.TrimPrefix(filepath.Base(d), "dsp.")
-		if btProfileRe.MatchString(p) {
-			want["ryoku-"+p] = d
-		}
-	}
+	want := btWantedSinks(devs, st)
 	have := btSinks()
 	names := map[string]string{}
 	for _, d := range st.Devices {
@@ -632,12 +626,48 @@ func syncBtSinks(st btStatus) {
 		if desc == "" {
 			desc = "Bluetooth audio"
 		}
-		_ = exec.Command("pw-cli", "create-node", "adapter", btSinkProps(node, desc, path)).Run()
+		if exec.Command("pw-cli", "create-node", "adapter", btSinkProps(node, desc, path)).Run() == nil {
+			btSwitchTo(node)
+		}
 	}
 	for node := range have {
 		if _, ok := want[node]; !ok {
 			_ = exec.Command("pw-cli", "destroy", node).Run()
 		}
+	}
+}
+
+// btWantedSinks maps sink names to virtual_oss devices, for the headsets
+// that are connected. The profile, and so its device, stays up while the
+// headset is off, and a sink left behind would keep WirePlumber choosing
+// it as the default output.
+func btWantedSinks(devs []string, st btStatus) map[string]string {
+	connected := map[string]bool{}
+	for _, d := range st.Devices {
+		if d.Connected {
+			connected[btProfile(d.Address)] = true
+		}
+	}
+	want := map[string]string{}
+	for _, d := range devs {
+		p := strings.TrimPrefix(filepath.Base(d), "dsp.")
+		if btProfileRe.MatchString(p) && connected[p] {
+			want["ryoku-"+p] = d
+		}
+	}
+	return want
+}
+
+// btSwitchTo makes a headset that just connected the default output, as
+// other desktops do. When it disconnects its sink goes away and
+// WirePlumber falls back to the output chosen before it. The new node
+// takes a moment to register, so it retries briefly.
+func btSwitchTo(node string) {
+	for i := 0; i < 10; i++ {
+		if exec.Command("pactl", "set-default-sink", node).Run() == nil {
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
