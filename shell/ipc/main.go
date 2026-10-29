@@ -37,6 +37,9 @@ func main() {
 		}
 		return
 	}
+	if args[0] == "wifi" {
+		os.Exit(runWifi(args[1:]))
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)
@@ -77,5 +80,6 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  ryoku-shell voice")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell backlight <up|down>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell lockkeys")
+	fmt.Fprintln(os.Stderr, "  ryoku-shell wifi <status|watch|scan|connect [-p] <ssid>|disconnect|radio on|off>")
 	fmt.Fprintln(os.Stderr, "  ryoku-shell <reload|status|ping|quit>")
 }

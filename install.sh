@@ -57,9 +57,18 @@ if [ $system -eq 1 ]; then
     id -Gn | tr ' ' '\n' | grep -qx "$g" || { $as_root pw groupmod "$g" -m "$(id -un)"; say "added $(id -un) to $g (log in again)"; }
   done
 
+  # wpa_supplicant's control socket, open to wheel, is how the shell lists,
+  # joins and saves Wi-Fi networks. existing settings are kept.
+  wpa=/etc/wpa_supplicant.conf
+  for kv in ctrl_interface=/var/run/wpa_supplicant ctrl_interface_group=wheel update_config=1; do
+    $as_root grep -q "^${kv%%=*}=" "$wpa" 2>/dev/null ||
+      printf '%s\n' "$kv" | $as_root tee -a "$wpa" >/dev/null
+  done
+  $as_root chmod 600 "$wpa"
+
   # ryoku-priv: the desktop's only root entry point (lid behaviour, the
-  # webcam kill switch, game mode's Wi-Fi power save), passwordless for this
-  # user and this file only.
+  # webcam kill switch, the Wi-Fi radio and game mode's Wi-Fi power save),
+  # passwordless for this user and this file only.
   $as_root install -o root -g wheel -m 755 "$repo/system/ryoku-priv" /usr/local/libexec/ryoku-priv
   if [ "$as_root" = doas ]; then
     rule="permit nopass $(id -un) as root cmd /usr/local/libexec/ryoku-priv"
