@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Networking
 import Quickshell.Bluetooth
 import "Singletons"
 
@@ -57,25 +56,22 @@ PillSurface {
         : subview === "bt" ? btPage.implicitHeight
         : mainCol.implicitHeight
 
-    readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
-    readonly property var eth: netDevices.find(function(d) { return d && d.type === DeviceType.Wired && d.connected }) || null
-    readonly property var wifiDev: netDevices.find(function(d) { return d && d.type === DeviceType.Wifi }) || null
-    readonly property bool wired: eth !== null
+    readonly property bool wired: WifiLink.st.wired
+    readonly property string ethIface: wired ? WifiLink.st.route : ""
 
-    readonly property real ethSpeed: (eth && eth.linkSpeed) ? eth.linkSpeed : 0
+    readonly property real ethSpeed: WifiLink.st.speed || 0
     readonly property string ethSpeedText: ethSpeed > 0
         ? (ethSpeed >= 1000 ? (ethSpeed / 1000).toFixed(ethSpeed % 1000 === 0 ? 0 : 1) + " Gb/s" : ethSpeed + " Mb/s")
         : ""
 
-    readonly property bool wifiOn: (typeof Networking !== "undefined" && Networking) ? Networking.wifiEnabled : false
-    readonly property var wifiNets: (wifiDev && wifiDev.networks) ? wifiDev.networks.values : []
-    readonly property var wifiActive: wifiNets.find(function(n) { return n && n.connected }) || null
+    readonly property bool wifiOn: WifiLink.wifiOn
+    readonly property var wifiActive: WifiLink.active
 
     readonly property string netzSubText: wired
         ? ("Ethernet"
             + (ethSpeedText.length ? " · " + ethSpeedText : "")
             + (ethIp.length ? " · " + ethIp : ""))
-        : (wifiActive ? (wifiActive.name || "") : (wifiOn ? "Nicht verbunden" : "Aus"))
+        : (wifiActive ? (wifiActive.name || "") : (!WifiLink.present ? "Offline" : (wifiOn ? "Nicht verbunden" : "Aus")))
 
     readonly property var btAdapter: (typeof Bluetooth !== "undefined" && Bluetooth) ? Bluetooth.defaultAdapter : null
     readonly property var btDevices: (typeof Bluetooth !== "undefined" && Bluetooth && Bluetooth.devices) ? Bluetooth.devices.values : []
@@ -121,7 +117,7 @@ PillSurface {
 
     Process {
         id: ipProc
-        command: ["sh", "-c", "ip -4 -o addr show scope global up | awk '{for(i=1;i<=NF;i++) if($i==\"inet\"){print $(i+1); exit}}' | cut -d/ -f1"]
+        command: ["sh", "-c", "ifconfig \"$1\" inet 2>/dev/null | awk '$1==\"inet\"{print $2; exit}'", "sh", root.ethIface]
         running: false
         stdout: StdioCollector { onStreamFinished: root.ethIp = this.text.trim() }
     }
@@ -197,8 +193,8 @@ PillSurface {
 
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.subview = "wifi"
+                    cursorShape: WifiLink.present ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: if (WifiLink.present) root.subview = "wifi"
                 }
 
                 GlyphIcon {
@@ -258,13 +254,10 @@ PillSurface {
 
                     LinkToggle {
                         s: root.s
-                        visible: !root.wired
+                        visible: !root.wired && WifiLink.present
                         anchors.verticalCenter: parent.verticalCenter
                         on: root.wifiOn
-                        onToggled: {
-                            if (typeof Networking !== "undefined" && Networking)
-                                Networking.wifiEnabled = !Networking.wifiEnabled;
-                        }
+                        onToggled: WifiLink.setWifiEnabled(!WifiLink.wifiOn)
                     }
 
                     GlyphIcon {

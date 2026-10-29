@@ -55,18 +55,10 @@ Item {
     }
 
     // ── quick-toggle state (wifi, mic; bluetooth via BT service, night via pgrep) ──
-    property bool wifiOn: false
-    Process {
-        id: wifiProc
-        command: ["sh", "-c", "nmcli radio wifi 2>/dev/null"]
-        stdout: StdioCollector { onStreamFinished: root.wifiOn = this.text.trim() === "enabled" }
-    }
+    readonly property bool wifiOn: WifiLink.wifiOn
     function toggleWifi() {
-        Spawn.spawn(["nmcli", "radio", "wifi", root.wifiOn ? "off" : "on"]);
-        root.wifiOn = !root.wifiOn;
-        wifiPoll.restart();
+        WifiLink.setWifiEnabled(!WifiLink.wifiOn);
     }
-    Timer { id: wifiPoll; interval: 1200; onTriggered: wifiProc.running = true }
 
     property bool micMuted: true
     Process {
@@ -101,21 +93,17 @@ Item {
     }
     Timer { id: nightPoll; interval: 2000; onTriggered: nightProc.running = true }
 
-    // airplane: rfkill block/unblock all radios at once. poll-based (not just
-    // a locally-flipped bool) so a physical airplane-mode hardware key is
-    // reflected instead of fought.
-    property bool airplaneOn: false
-    Process {
-        id: airplaneProc
-        command: ["sh", "-c", "rfkill -J 2>/dev/null | jq -r 'if ([.rfkilldevices[]? | select(.type==\"wlan\" or .type==\"bluetooth\") | .soft] | any(. == \"unblocked\")) then \"off\" else \"on\" end'"]
-        stdout: StdioCollector { onStreamFinished: root.airplaneOn = this.text.trim() === "on" }
-    }
+    // airplane: every radio off at once. FreeBSD has no rfkill, so it is the
+    // Wi-Fi interfaces down plus the Bluetooth adapter, if any, disabled;
+    // on while no radio is left on.
+    readonly property bool airplaneOn: (WifiLink.present || root.btAdapter !== null) && !WifiLink.wifiOn && !root.btOn
     function toggleAirplane() {
-        Spawn.spawn(["sh", "-c", root.airplaneOn ? "rfkill unblock all" : "rfkill block all"]);
-        root.airplaneOn = !root.airplaneOn;
-        airplanePoll.restart();
+        var off = !root.airplaneOn;
+        if (WifiLink.present)
+            WifiLink.setWifiEnabled(!off);
+        if (root.btAdapter)
+            root.btAdapter.enabled = !off;
     }
-    Timer { id: airplanePoll; interval: 1200; onTriggered: airplaneProc.running = true }
 
     // tablet mode: disables the built-in keyboard + trackpad only, via the
     // ryoku-cmd-tablet-mode script (device detection lives there, not here).
@@ -135,10 +123,8 @@ Item {
     Binding { target: Webcam; property: "active"; value: root.active }
 
     function repoll() {
-        wifiProc.running = true;
         micProc.running = true;
         nightProc.running = true;
-        airplaneProc.running = true;
         tabletProc.running = true;
     }
     onActiveChanged: {

@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Io
-import Quickshell.Networking
 import ".."
 import "../Singletons"
 
@@ -14,10 +13,9 @@ import "../Singletons"
 // knows wired vs wifi via the lightweight Network singleton, but LinkWifi
 // only ever talks wifi -- so a wired box used to open this popout and see
 // nothing but "Searching networks…". the status rows here read the same
-// Quickshell.Networking devices Link.qml's main view uses for kind/speed/
-// SSID/signal, plus a per-interface `ifconfig` lookup for the IP (the QML
-// device's own "address" property is its MAC, not an IP) so eth and wifi
-// never share one "the" IP. a wifi header eyebrow over LinkWifi's live
+// WifiLink state Link.qml's main view uses for kind/speed/SSID/signal, plus
+// a per-interface `ifconfig` lookup for the IP so eth and wifi never share
+// one "the" IP. a wifi header eyebrow over LinkWifi's live
 // enable toggle, rescan, signal-sorted network list and inline password
 // connect. plain transparent
 // Item -- the frame blob behind it IS the surface; Popout reads the reported
@@ -27,35 +25,30 @@ Item {
     id: root
 
     property real s: 1
-    // popout open: gates LinkWifi's live scanner so nmcli never spins while closed.
+    // popout open: gates LinkWifi's rescans so they never run while closed.
     property bool open: false
 
     anchors.fill: parent
 
-    readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
-    readonly property var eth: netDevices.find(function(d) { return d && d.type === DeviceType.Wired && d.connected }) || null
-    readonly property bool wired: eth !== null
+    readonly property bool wired: WifiLink.st.wired
 
-    readonly property real ethSpeed: (eth && eth.linkSpeed) ? eth.linkSpeed : 0
+    readonly property real ethSpeed: WifiLink.st.speed || 0
     readonly property string ethSpeedText: ethSpeed > 0
         ? (ethSpeed >= 1000 ? (ethSpeed / 1000).toFixed(ethSpeed % 1000 === 0 ? 0 : 1) + " Gb/s" : ethSpeed + " Mb/s")
         : ""
 
-    readonly property var wifiDev: netDevices.find(function(d) { return d && d.type === DeviceType.Wifi }) || null
-    readonly property bool wifiOn: (typeof Networking !== "undefined" && Networking) ? Networking.wifiEnabled : false
-    readonly property var wifiNets: (wifiDev && wifiDev.networks) ? wifiDev.networks.values : []
-    readonly property var wifiActive: wifiNets.find(function(n) { return n && n.connected }) || null
+    readonly property bool wifiOn: WifiLink.wifiOn
+    readonly property var wifiActive: WifiLink.active
     readonly property bool wifiConnected: wifiActive !== null
 
     readonly property string wifiSignalText: wifiActive && wifiActive.signalStrength
         ? Math.round(wifiActive.signalStrength * 100) + "%"
         : ""
 
-    // NetworkDevice.address is the interface's MAC, not an IP -- ask `ip`
-    // per interface name instead, so eth and wifi never fight over one
-    // shared "the" IP when both links are up at once.
-    readonly property string ethIface: eth ? eth.name : ""
-    readonly property string wifiIface: wifiDev ? wifiDev.name : ""
+    // ask `ifconfig` per interface name, so eth and wifi never fight over
+    // one shared "the" IP when both links are up at once.
+    readonly property string ethIface: wired ? WifiLink.st.route : ""
+    readonly property string wifiIface: WifiLink.st.iface
 
     property string ethIp: ""
     property string wifiIp: ""
@@ -207,7 +200,8 @@ Item {
         LinkWifi {
             compact: true
             s: root.s
-            active: root.open
+            visible: WifiLink.present
+            active: root.open && WifiLink.present
             enabled: root.open
             width: parent.width
         }

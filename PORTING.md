@@ -8,7 +8,7 @@ What still assumes Linux. Delete a line when it is done.
 
 ## Linux tools with a FreeBSD equivalent
 
-- Wi-Fi via `nmcli`: `shared/WifiLink.qml`, `pill/Singletons/Network.qml`, `pill/LinkWifi.qml`, `pill/popouts/NetworkPopout.qml`, `hub/WifiTab.qml`, `hub/HotspotTab.qml`. Port to `ifconfig wlan0 scan` + `wpa_cli`. Quickshell's own network service has no FreeBSD backend either.
+- Wi-Fi hotspot via `nmcli`: the hotspot half of `shared/WifiLink.qml`, `hub/HotspotTab.qml`, the hotspot block in `pill/LinkWifi.qml`. FreeBSD needs a `hostap` wlan clone, hostapd, a DHCP server and pf NAT.
 - Package search via `gpk` (pacman/yay): `launcher/providers/packages/Packages.qml`. Port to `pkg search`.
 - Battery via upower: `pill/Singletons/Battery.qml`. Check upower's FreeBSD backend, else `acpiconf -i 0`.
 
@@ -19,6 +19,8 @@ What still assumes Linux. Delete a line when it is done.
 - Power profiles: Quickshell's PowerProfiles service needs `power-profiles-daemon`, which FreeBSD lacks. Find what uses it and hide it, or back it with `powerd`/`powerdxx`.
 
 ## Not yet verified on hardware
+
+- Wi-Fi through `ryoku-shell wifi` (scan, join, radio, game mode's power save): the Zenbook's MT7925 has no FreeBSD driver, so only the wired path and a fake supplicant in the tests have run it.
 
 - The internal speakers on the Zenbook S 16 (UM5606WA): FreeBSD `snd_hda` gap, see `~/zenbook-audio-fix.md` on that machine.
 - Every QML surface under Quickshell 0.3.2 / Qt 6.11 beyond the bar, launcher, Hub and ryowalls.

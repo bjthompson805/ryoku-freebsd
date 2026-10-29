@@ -5,12 +5,11 @@ import QtQuick.Controls
 import "Singletons"
 
 // wi-fi subtab. master on/off, rescan (spins ~10s), live list sorted by signal.
-// nmcli scan/connect state, security lookups, and the connect flow all live in
-// the shared WifiLink singleton (see ryoku/shared/quickshell/WifiLink.qml) so
-// this page and the pill's LinkWifi drill-in agree on them instead of racing
-// separate copies. parent Loader recreates the page on tab change; the device
-// scanner runs while we're visible (setScannerActive), and mount/unmount also
-// drives WifiLink's own list refresh.
+// scan/connect state, security lookups, and the connect flow all live in the
+// shared WifiLink singleton (see shared/quickshell/WifiLink.qml) so this page
+// and the pill's LinkWifi drill-in agree on them instead of racing separate
+// copies. parent Loader recreates the page on tab change; periodic rescans
+// run while we're visible (setScannerActive).
 Item {
     id: page
 
@@ -81,6 +80,7 @@ Item {
             anchors.right: parent.right
             label: "Wi-Fi"
             highlightId: "wifi_toggle"
+            enabled: WifiLink.present
             checked: WifiLink.wifiOn
             onToggled: (v) => WifiLink.setWifiEnabled(v)
         }
@@ -102,7 +102,7 @@ Item {
             anchors.topMargin: 28
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !WifiLink.wifiOn
-            text: "Wi-Fi is off."
+            text: WifiLink.present ? "Wi-Fi is off." : "No Wi-Fi adapter found."
             color: Theme.dim
             font.family: Theme.font
             font.pixelSize: 13
@@ -176,7 +176,7 @@ Item {
                         readonly property bool secured: WifiLink.isSecured(ssid)
                         readonly property bool known: WifiLink.knownProfiles[ssid] === true
                         readonly property bool expanded: ssid.length > 0 && WifiLink.expandedSsid === ssid
-                        readonly property int strength: modelData ? Math.round((modelData.signalStrength || 0)) : 0
+                        readonly property int strength: modelData ? Math.round((modelData.signalStrength || 0) * 100) : 0
 
                         width: netCol.width
                         spacing: 4

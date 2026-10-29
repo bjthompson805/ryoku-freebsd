@@ -5,12 +5,11 @@ import QtQuick.Controls
 import "Singletons"
 
 // wifi drill-in for the link surface. back chevron, enable toggle, live
-// network list sorted by signal. nmcli is ground truth for security and
-// known-profile state; clicking a secured-unknown network drops an inline
-// password row that pipes through `nmcli dev wifi connect`. background comes
-// from the pill body, so we draw none. all of that state and the connect/
-// hotspot flows live in the shared WifiLink singleton (see
-// ryoku/shared/quickshell/WifiLink.qml) so this drill-in and the Hub's Wi-Fi
+// network list sorted by signal. clicking a secured-unknown network drops an
+// inline password row that pipes through `ryoku-shell wifi connect -p`.
+// background comes from the pill body, so we draw none. all of that state
+// and the connect/hotspot flows live in the shared WifiLink singleton (see
+// shared/quickshell/WifiLink.qml) so this drill-in and the Hub's Wi-Fi
 // + Hotspot tabs agree on them instead of racing separate copies.
 Item {
     id: root

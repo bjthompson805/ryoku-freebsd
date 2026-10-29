@@ -2,66 +2,74 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Networking
 
 // Shared wifi + hotspot control for every network surface (the Hub's Wi-Fi
-// and Hotspot tabs, the pill's Link drill-in). One real file, symlinked into
-// every root's Singletons/ that needs it, same trick as SpawnCore.qml -- see
-// that file's header for why a symlink instead of a copy. Named WifiLink, not
-// Network or Networking: Quickshell.Networking already exports a global
-// `Networking` type (Networking.devices below), and pill already has a
-// separate, lightweight `Network` singleton (bar-status presence only, no
-// scanning/connecting) that this must not collide with.
+// and Hotspot tabs, the pill's Link drill-in, and the pill's Network
+// singleton behind the bar icon). One real file, symlinked into every root's
+// Singletons/ that needs it, same trick as SpawnCore.qml -- see that file's
+// header for why a symlink instead of a copy. Named WifiLink, not Network:
+// pill already has a separate, lightweight `Network` singleton (bar-status
+// presence only) that reads from this one.
 //
-// nmcli is ground truth for security + known-profile state (the Quickshell
-// service doesn't expose them); connecting pipes the password on stdin so it
-// never lands in /proc/<pid>/cmdline. The hotspot half brings the persistent
-// `RyokuHotspot` NetworkManager profile up/down, name/password as positional
-// args, never spliced into the shell string.
+// `ryoku-shell wifi watch` is ground truth: it streams the radio, the default
+// route and the wpa_supplicant scan list as one JSON line per change.
+// Connecting pipes the password on stdin so it never lands in a process
+// argument list; a new network that fails to join is removed by the backend.
+// The hotspot half still drives a NetworkManager profile through nmcli.
 Singleton {
     id: root
 
     // ---- wifi list ----------------------------------------------------
 
-    readonly property var devices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
-    readonly property var wifiDev: devices.find(function(d) { return d && d.type === DeviceType.Wifi }) || null
-    readonly property bool wifiOn: (typeof Networking !== "undefined" && Networking) ? Networking.wifiEnabled : false
-    readonly property var nets: (wifiDev && wifiDev.networks) ? wifiDev.networks.values : []
-    readonly property var netsSorted: nets
-        .slice()
-        .filter(function(n) { return n && n.name && n.name.length > 0; })
-        .sort(function(a, b) {
-            return ((b ? b.signalStrength : 0) || 0) - ((a ? a.signalStrength : 0) || 0);
-        })
+    // the last line from the watcher; see wifiStatus in shell/ipc/wifi.go.
+    property var st: ({ iface: "", radio: false, route: "", wired: false, speed: 0, ssid: "", signal: 0, networks: [] })
 
-    property var securityMap: ({})
-    property var knownProfiles: ({})
+    // a wlan interface exists. without one every Wi-Fi control hides.
+    readonly property bool present: st.iface !== ""
+    readonly property bool wifiOn: present && st.radio
+    // rows shaped like the old Quickshell.Networking objects the surfaces
+    // read: name, signalStrength (0..1), connected.
+    readonly property var nets: (st.networks || []).map(function(n) {
+        return { name: n.ssid, signalStrength: n.signal, connected: n.connected, secured: n.secured, known: n.known };
+    })
+    // the backend already sorts by signal and drops hidden SSIDs.
+    readonly property var netsSorted: nets
+    readonly property var active: nets.find(function(n) { return n.connected; }) || null
+
+    readonly property var securityMap: {
+        var map = {};
+        nets.forEach(function(n) { map[n.name] = n.secured; });
+        return map;
+    }
+    readonly property var knownProfiles: {
+        var set = {};
+        nets.forEach(function(n) { if (n.known) set[n.name] = true; });
+        return set;
+    }
     property string expandedSsid: ""
     property bool connecting: false
     property bool connectFailed: false
     property bool scanning: false
 
-    // whether some visible UI wants the wifi device's continuous background
-    // scanner on -- set via setScannerActive() from whichever surface (hub
-    // tab or pill drill-in) is currently shown, since more than one may exist
-    // across the app's lifetime but only one is ever visible at a time.
+    // whether some visible UI wants periodic rescans -- set via
+    // setScannerActive() from whichever surface (hub tab or pill drill-in)
+    // is currently shown, since more than one may exist across the app's
+    // lifetime but only one is ever visible at a time.
     property bool scannerActive: false
 
     // password being typed for expandedSsid. lives here, not on a delegate:
-    // an nmcli rescan hands the network list a brand-new array, which tears
-    // down and recreates the delegate mid-typing; the field restores from
-    // this on rebuild.
+    // a rescan hands the network list a brand-new array, which tears down
+    // and recreates the delegate mid-typing; the field restores from this on
+    // rebuild.
     property string pwDraft: ""
     property string pendingPw: ""
-    property string attemptSsid: ""
-    property bool attemptWasKnown: false
 
     // ---- hotspot --------------------------------------------------------
 
     // hsCon = the NM profile name Ryoku owns; everything else is read from
     // that profile or driven into it by applyHotspot/stopHotspot.
     readonly property string hsCon: "RyokuHotspot"
-    readonly property string hsIface: wifiDev ? (wifiDev.name || "wlan0") : "wlan0"
+    readonly property string hsIface: st.iface || "wlan0"
     property string hsName: "Ryoku"
     property string hsPw: ""
     property bool hsActive: false
@@ -70,23 +78,12 @@ Singleton {
     property string hsDraft: ""
 
     function isSecured(ssid) {
-        var sec = root.securityMap[ssid];
-        return sec !== undefined && sec !== "" && sec !== "--";
+        return root.securityMap[ssid] === true;
     }
 
+    // the watcher keeps the state current; this only revives it if it died.
     function refresh() {
-        secProc.running = true;
-        profProc.running = true;
-    }
-
-    // split one `nmcli -t` line at its last unescaped colon, unescape the
-    // leading field. null if there's no separator.
-    function _splitTerse(line) {
-        for (var k = line.length - 1; k >= 0; k--) {
-            if (line[k] === ":" && (k === 0 || line[k - 1] !== "\\"))
-                return { head: line.slice(0, k).replace(/\\:/g, ":"), tail: line.slice(k + 1) };
-        }
-        return null;
+        watchProc.running = true;
     }
 
     // row click: connected -> disconnect, known or open -> connect, else
@@ -100,16 +97,12 @@ Singleton {
             return;
         }
         if (net.connected) {
-            if (typeof net.disconnect === "function")
-                net.disconnect();
+            disconnectProc.running = true;
             return;
         }
-        var secKnown = root.securityMap[ssid] !== undefined;
-        if (root.knownProfiles[ssid] === true || (secKnown && !root.isSecured(ssid))) {
+        if (net.known || !net.secured) {
             root.expandedSsid = "";
-            if (typeof net.connect === "function")
-                net.connect();
-            root.refresh();
+            root._connect(ssid, "");
             return;
         }
         root.connectFailed = false;
@@ -117,33 +110,37 @@ Singleton {
         root.expandedSsid = ssid;
     }
 
-    // `nmcli --ask`, password through stdin. /proc/<pid>/cmdline is world-
-    // readable for the whole attempt, so it MUST NOT be in argv.
+    // password through stdin: the process list is world-readable for the
+    // whole attempt, so it MUST NOT be in argv.
     function connectWithPassword(ssid, pw) {
-        if (connProc.running || !pw.length)
+        if (pw.length)
+            root._connect(ssid, pw);
+    }
+
+    function _connect(ssid, pw) {
+        if (connProc.running)
             return;
         root.connecting = true;
         root.connectFailed = false;
-        root.attemptSsid = ssid;
-        root.attemptWasKnown = root.knownProfiles[ssid] === true;
         root.pendingPw = pw;
-        connProc.command = ["nmcli", "--ask", "dev", "wifi", "connect", ssid];
+        connProc.command = pw.length
+            ? ["ryoku-shell", "wifi", "connect", "-p", ssid]
+            : ["ryoku-shell", "wifi", "connect", ssid];
         connProc.running = true;
     }
 
     function setWifiEnabled(v) {
-        if (typeof Networking !== "undefined" && Networking)
-            Networking.wifiEnabled = v;
+        radioProc.command = ["ryoku-shell", "wifi", "radio", v ? "on" : "off"];
+        radioProc.running = true;
     }
 
-    // reload pulse. forces an nmcli rescan and spins the button up to 10s.
-    // the device scanner runs continuously while some surface wants it on
-    // (scannerActive); this just refreshes results and drives the spinner.
+    // reload pulse: asks the supplicant for a fresh scan and spins the button
+    // up to 10s; results arrive through the watcher.
     function startScan() {
         if (!root.wifiOn)
             return;
         root.scanning = true;
-        rescanProc.running = true;
+        scanProc.running = true;
         scanTimer.restart();
     }
 
@@ -153,8 +150,8 @@ Singleton {
     }
 
     // called by a surface as it becomes/stops being the visible wifi UI:
-    // drives the device's background scanner and, on the way out, drops any
-    // in-progress password entry so the next visit starts clean.
+    // drives the periodic rescan and, on the way out, drops any in-progress
+    // password entry so the next visit starts clean.
     function setScannerActive(v) {
         root.scannerActive = v;
         if (!v) {
@@ -164,65 +161,54 @@ Singleton {
         }
     }
 
-    Binding {
-        target: root.wifiDev
-        property: "scannerEnabled"
-        value: root.scannerActive && root.wifiOn
-        when: root.wifiDev !== null
-    }
-
     Timer {
         id: scanTimer
         interval: 10000
         onTriggered: root.stopScan()
     }
 
+    // a connected supplicant does not rescan on its own, so keep the list
+    // fresh while someone is looking at it.
     Timer {
-        id: secRefresh
-        interval: 1200
-        onTriggered: if (root.scannerActive) secProc.running = true
-    }
-    onNetsChanged: if (root.scannerActive) secRefresh.restart()
-
-    Process {
-        id: rescanProc
-        command: ["nmcli", "dev", "wifi", "rescan"]
+        interval: 20000
+        repeat: true
+        triggeredOnStart: true
+        running: root.scannerActive && root.wifiOn
+        onTriggered: scanProc.running = true
     }
 
     Process {
-        id: secProc
-        command: ["nmcli", "-t", "-f", "SSID,SECURITY", "dev", "wifi", "list"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var map = {};
-                var lines = this.text.split("\n");
-                for (var i = 0; i < lines.length; i++) {
-                    if (!lines[i].length)
-                        continue;
-                    var parts = root._splitTerse(lines[i]);
-                    if (parts && parts.head.length)
-                        map[parts.head] = parts.tail;
-                }
-                root.securityMap = map;
+        id: watchProc
+        running: true
+        command: ["ryoku-shell", "wifi", "watch"]
+        stdout: SplitParser {
+            onRead: function(line) {
+                try {
+                    root.st = JSON.parse(line);
+                } catch (e) {}
             }
         }
+        onExited: watchRetry.restart()
+    }
+
+    Timer {
+        id: watchRetry
+        interval: 5000
+        onTriggered: watchProc.running = true
     }
 
     Process {
-        id: profProc
-        command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var set = {};
-                var lines = this.text.split("\n");
-                for (var i = 0; i < lines.length; i++) {
-                    var parts = root._splitTerse(lines[i]);
-                    if (parts && parts.head.length && parts.tail === "802-11-wireless")
-                        set[parts.head] = true;
-                }
-                root.knownProfiles = set;
-            }
-        }
+        id: scanProc
+        command: ["ryoku-shell", "wifi", "scan"]
+    }
+
+    Process {
+        id: radioProc
+    }
+
+    Process {
+        id: disconnectProc
+        command: ["ryoku-shell", "wifi", "disconnect"]
     }
 
     Process {
@@ -231,7 +217,8 @@ Singleton {
         stdout: StdioCollector {}
         stderr: StdioCollector {}
         onStarted: {
-            write(root.pendingPw + "\n");
+            if (root.pendingPw.length)
+                write(root.pendingPw + "\n");
             root.pendingPw = "";
         }
         onExited: function(exitCode) {
@@ -240,23 +227,10 @@ Singleton {
                 root.expandedSsid = "";
                 root.pwDraft = "";
                 root.connectFailed = false;
-                root.refresh();
             } else {
                 root.connectFailed = true;
-                if (!root.attemptWasKnown && root.attemptSsid.length) {
-                    cleanupProc.command = ["nmcli", "connection", "delete", "id", root.attemptSsid];
-                    cleanupProc.running = true;
-                }
             }
         }
-    }
-
-    // a failed `nmcli dev wifi connect` leaves a profile named after the SSID;
-    // without deleting it the next click reads it as known and silently fails
-    // forever. ask me how I found out.
-    Process {
-        id: cleanupProc
-        onExited: root.refresh()
     }
 
     // ---- hotspot ----------------------------------------------------------
