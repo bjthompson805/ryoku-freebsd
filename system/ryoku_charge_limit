@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# PROVIDE: ryoku_charge_limit
+# REQUIRE: kld
+# KEYWORD: shutdown
+#
+# Re-applies the battery charge limit at boot, since the firmware forgets it
+# at power-off, and lifts it to 100% at shutdown when "full while off" is on.
+# install.sh puts this in /usr/local/etc/rc.d and enables it.
+
+. /etc/rc.subr
+
+name=ryoku_charge_limit
+rcvar=ryoku_charge_limit_enable
+start_cmd="/usr/local/libexec/ryoku-priv charge-limit apply"
+stop_cmd="/usr/local/libexec/ryoku-priv charge-limit release"
+
+load_rc_config $name
+: "${ryoku_charge_limit_enable:=NO}"
+run_rc_command "$1"

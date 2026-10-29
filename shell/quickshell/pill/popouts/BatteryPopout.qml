@@ -18,7 +18,7 @@ Item {
     property real s: 1
     // popout open flag (content contract): no live polling lives here -- the
     // Battery singleton feeds itself off UPower -- but opening re-reads the
-    // charge limit, which UPower's binding doesn't carry.
+    // charge limit, which UPower doesn't carry.
     property bool open: false
     onOpenChanged: if (open) Battery.refreshLimit()
 
@@ -231,7 +231,7 @@ Item {
 
         Divider { visible: Battery.limitSupported }
 
-        // charge limit: UPower's threshold switch and the percentage it stops
+        // charge limit: the firmware threshold switch and the percentage it stops
         // at. the field stays live with the switch off, so a new percentage can
         // be set before turning the limit on.
         Column {

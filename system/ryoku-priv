@@ -15,6 +15,11 @@
 #   ryoku-priv hotspot up|down     share the default route over Wi-Fi; up
 #                                  reads the network name and the password
 #                                  from stdin, one line each
+#   ryoku-priv charge-limit on|off|set <50-100>|full-when-off on|off
+#                                  battery charge limit (ASUS firmware)
+#   ryoku-priv charge-limit probe|apply|release
+#                                  check for support (install.sh), apply at
+#                                  boot, lift to 100% at shutdown if opted in
 set -eu
 
 ps_prev=/var/run/ryoku-wifi-powersave.prev
@@ -116,7 +121,91 @@ hotspot_up() {
   fi
 }
 
+# the charge limit goes through ASUS's WMI method on \_SB.ATKD, the call
+# Linux's asus-wmi makes: DSTS (status) or DEVS (set) on device 0x00120057,
+# the battery's RSOC. the firmware reports support, not the current limit,
+# and forgets the limit at power-off, so the setting lives in cl_state,
+# world-readable for ryoku-charge-limit's status, and boot re-applies it.
+cl_state=/var/db/ryoku-charge-limit
+cl_method='\_SB.ATKD.WMNB'
+cl_dsts=1398035268  # 0x53545344
+cl_devs=1398162756  # 0x53564544
+
+# key from cl_state, else the default in $2.
+cl_get() {
+  v=$(awk -v k="$1" '$1 == k { print $2 }' "$cl_state" 2>/dev/null) || v=
+  echo "${v:-$2}"
+}
+
+# rewrite cl_state with one key changed.
+cl_put() {
+  supported=$(cl_get supported false) enabled=$(cl_get enabled false)
+  end=$(cl_get end 80) full_when_off=$(cl_get full_when_off false)
+  eval "$1=\$2"
+  printf 'supported %s\nenabled %s\nend %s\nfull_when_off %s\n' \
+    "$supported" "$enabled" "$end" "$full_when_off" >"$cl_state.tmp"
+  chmod 644 "$cl_state.tmp"
+  mv -f "$cl_state.tmp" "$cl_state"
+}
+
+# one WMNB call on the RSOC device with a 32-bit argument; prints the result.
+cl_call() {
+  kldload -n acpi_call 2>/dev/null || return 1
+  acpi_call -p "$cl_method" -i 0 -i "$1" \
+    -b "57001200$(printf '%02x' "$2")000000000000000000000000000000" -o i 2>/dev/null
+}
+
+# write a limit to the firmware; it answers 1 when it took it.
+cl_write() {
+  [ "$(cl_get supported false)" = true ] || { echo "this battery has no charge limit" >&2; exit 1; }
+  [ "$(cl_call "$cl_devs" "$1")" = 1 ] || { echo "the firmware refused the charge limit" >&2; exit 1; }
+}
+
+charge_limit() {
+  case "${1:-} ${2:-}" in
+    "probe ")
+      if [ "$(cl_call "$cl_dsts" 0)" = 1 ]; then cl_put supported true; else cl_put supported false; fi
+      ;;
+    "on ")
+      cl_write "$(cl_get end 80)"
+      cl_put enabled true
+      ;;
+    "off ")
+      cl_write 100
+      cl_put enabled false
+      ;;
+    "set "*)
+      case "$2" in [5-9][0-9]|100) ;; *) echo "the limit must be 50 to 100" >&2; exit 2 ;; esac
+      [ "$(cl_get enabled false)" = true ] && cl_write "$2"
+      cl_put end "$2"
+      ;;
+    "full-when-off on")
+      cl_put full_when_off true
+      ;;
+    "full-when-off off")
+      cl_put full_when_off false
+      ;;
+    "apply ")
+      if [ "$(cl_get enabled false)" = true ]; then cl_write "$(cl_get end 80)"; fi
+      ;;
+    "release ")
+      if [ "$(cl_get enabled false)" = true ] && [ "$(cl_get full_when_off false)" = true ]; then
+        cl_write 100
+      fi
+      ;;
+    *)
+      sed -n '7,22p' "$0" >&2
+      exit 2
+      ;;
+  esac
+}
+
 case "${1:-} ${2:-}" in
+  "charge-limit "*)
+    shift
+    [ $# -le 2 ] || { sed -n '7,22p' "$0" >&2; exit 2; }
+    charge_limit "$@"
+    ;;
   "hotspot up")
     hotspot_up
     ;;
@@ -160,7 +249,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,17p' "$0" >&2
+    sed -n '7,22p' "$0" >&2
     exit 2
     ;;
 esac

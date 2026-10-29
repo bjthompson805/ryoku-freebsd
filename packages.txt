@@ -46,6 +46,8 @@ kitty
 
 # Wi-Fi hotspot: DHCP and DNS for the devices that join (hostapd is in base)
 dnsmasq
+# battery charge limit: calls the ASUS firmware method
+acpi_call
 
 # terminal: fish with the starship prompt and the branded fastfetch readout
 fish

@@ -1,0 +1,34 @@
+#!/bin/sh
+# Battery charge limit for the bar's battery popout. Reads the setting
+# ryoku-priv keeps (it needs no root), and sends every change through
+# ryoku-priv, which install.sh lets run without a password.
+#
+#   status                 supported / enabled / end / min / full_when_off,
+#                          one "key value" per line
+#   on | off               enable or disable the limit
+#   set N                  make N% the limit (50-100)
+#   full-when-off on|off   charge to full while powered off
+set -u
+
+state=/var/db/ryoku-charge-limit
+priv=/usr/local/libexec/ryoku-priv
+
+get() {
+  v=$(awk -v k="$1" '$1 == k { print $2 }' "$state" 2>/dev/null) || v=
+  echo "${v:-$2}"
+}
+
+case "${1:-}" in
+  status)
+    printf 'supported %s\nenabled %s\nend %s\nmin 50\nfull_when_off %s\n' \
+      "$(get supported false)" "$(get enabled false)" "$(get end 80)" "$(get full_when_off false)"
+    ;;
+  on | off | set | full-when-off)
+    if command -v doas >/dev/null 2>&1; then exec doas -n "$priv" charge-limit "$@"
+    else exec sudo -n "$priv" charge-limit "$@"; fi
+    ;;
+  *)
+    sed -n '6,10p' "$0" >&2
+    exit 2
+    ;;
+esac

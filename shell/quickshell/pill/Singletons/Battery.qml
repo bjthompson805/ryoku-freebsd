@@ -10,7 +10,7 @@ import Quickshell.Services.UPower
 // capacity, optional health, plus a formatted time-to-empty/full string. low
 // = present, discharging and <=20% -- gated on present so the pre-UPower
 // startup window (batDev null, pct reads 0) can't read as a false low. also
-// carries UPower's charge limit and the "holding" state it produces.
+// carries the firmware charge limit and the "holding" state it produces.
 Singleton {
     id: root
 
@@ -35,8 +35,8 @@ Singleton {
     readonly property int pct: Math.round(frac * 100)
     readonly property int state: batDev ? batDev.state : UPowerDeviceState.Unknown
 
-    // charge limit, from UPower's charge-threshold support. Quickshell's UPower
-    // binding has no threshold properties, so these come from the
+    // charge limit, set in the ASUS firmware through ryoku-priv. UPower has
+    // no threshold support on FreeBSD, so these come from the
     // ryoku-charge-limit helper (see refreshLimit).
     property bool limitSupported: false
     property bool limitEnabled: false
@@ -109,23 +109,22 @@ Singleton {
             limitStatus.running = true;
     }
 
-    // UPower lets the active user toggle the limit, so no pkexec here. the
+    // every change goes through ryoku-priv, which needs no password. the
     // switch flips at once and the status re-read afterwards corrects it if
-    // UPower refused.
+    // the firmware refused.
     function setLimitEnabled(on) {
         limitEnabled = on;
         runLimit(["ryoku-charge-limit", on ? "on" : "off"]);
     }
 
-    // a new percentage rewrites a udev rule and restarts upower, so it goes
-    // through pkexec; 51-ryoku-charge-limit.rules lets wheel skip the password.
-    // the opt-in is a root-owned flag the shutdown hook reads, so pkexec again.
+    // the opt-in is read by the shutdown half of the ryoku_charge_limit rc
+    // script, which lifts the limit so the battery fills while off.
     function setLimitFullWhenOff(on) {
         limitFullWhenOff = on;
-        runLimit(["pkexec", "/usr/bin/ryoku-charge-limit", "full-when-off", on ? "on" : "off"]);
+        runLimit(["ryoku-charge-limit", "full-when-off", on ? "on" : "off"]);
     }
 
-    // a change made while the prompt is still up is queued, not dropped, so the
+    // a change made while the last one is still running is queued, not dropped, so the
     // field never shows a number that was never sent.
     function setLimit(percent) {
         if (limitCmd.running) {
@@ -133,7 +132,7 @@ Singleton {
             return;
         }
         limitSetting = true;
-        runLimit(["pkexec", "/usr/bin/ryoku-charge-limit", "set", String(Math.round(percent))]);
+        runLimit(["ryoku-charge-limit", "set", String(Math.round(percent))]);
     }
 
     function runLimit(argv) {
@@ -191,8 +190,8 @@ Singleton {
         }
     }
 
-    // upower restarts after a new percentage, and the limit can also change
-    // from a terminal; a slow re-read keeps the popout honest either way.
+    // the limit can also change from a terminal; a slow re-read keeps the
+    // popout honest.
     Timer {
         interval: 30000
         running: root.present

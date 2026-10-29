@@ -67,8 +67,9 @@ if [ $system -eq 1 ]; then
   $as_root chmod 600 "$wpa"
 
   # ryoku-priv: the desktop's only root entry point (lid behaviour, the
-  # webcam kill switch, the Wi-Fi radio and game mode's Wi-Fi power save),
-  # passwordless for this user and this file only.
+  # webcam kill switch, the Wi-Fi radio and hotspot, game mode's Wi-Fi power
+  # save, the battery charge limit), passwordless for this user and this
+  # file only.
   $as_root install -o root -g wheel -m 755 "$repo/system/ryoku-priv" /usr/local/libexec/ryoku-priv
   if [ "$as_root" = doas ]; then
     rule="permit nopass $(id -un) as root cmd /usr/local/libexec/ryoku-priv"
@@ -80,6 +81,16 @@ if [ $system -eq 1 ]; then
     $as_root chmod 440 /usr/local/etc/sudoers.d/ryoku
   fi
   say "installed /usr/local/libexec/ryoku-priv"
+
+  # battery charge limit: acpi_call reaches the ASUS firmware method, the rc
+  # script re-applies the limit each boot. probe records whether this
+  # machine has one; elsewhere the popout just hides the control.
+  $as_root sysrc kld_list+=acpi_call >/dev/null
+  $as_root kldload -n acpi_call
+  $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_charge_limit" /usr/local/etc/rc.d/ryoku_charge_limit
+  $as_root sysrc ryoku_charge_limit_enable=YES >/dev/null
+  $as_root /usr/local/libexec/ryoku-priv charge-limit probe
+  say "charge limit: $(awk '$1 == "supported" { print ($2 == "true" ? "supported" : "not supported") }' /var/db/ryoku-charge-limit)"
 fi
 
 # --- build ---------------------------------------------------------------------
@@ -97,7 +108,7 @@ say "building ryoku-livewall"
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"
 done
-for s in ryoku start-ryoku ryoku-monitor ryoku-leds; do
+for s in ryoku start-ryoku ryoku-monitor ryoku-leds ryoku-charge-limit; do
   install -m755 "$repo/system/$s" "$bin/$s"
 done
 # the checkout this install came from is the update channel `ryoku` tracks.
