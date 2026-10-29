@@ -121,6 +121,27 @@ for s in ryowalls ryoku-summon; do
 done
 
 # --- deploy --------------------------------------------------------------------
+stamp=$(date +%Y%m%d%H%M%S)
+
+# place SRC DST: install a config file Ryoku owns. a file at DST that is not
+# the copy Ryoku put there last time (one you wrote, or edited since) is kept
+# as DST.bak-<stamp> first. the manifest records each placed file's sha256.
+manifest="${XDG_STATE_HOME:-$HOME/.local/state}/ryoku/deployed"
+place() {
+  if [ -e "$2" ] && ! cmp -s "$1" "$2"; then
+    last=$(awk -F '\t' -v p="$2" '$2 == p { print $1 }' "$manifest" 2>/dev/null) || last=
+    if [ "$(sha256 -q "$2")" != "$last" ]; then
+      cp -p "$2" "$2.bak-$stamp"
+      say "kept your $2 as $2.bak-$stamp"
+    fi
+  fi
+  cp "$1" "$2"
+  mkdir -p "$(dirname "$manifest")"
+  { awk -F '\t' -v p="$2" '$2 != p' "$manifest" 2>/dev/null || true
+    printf '%s\t%s\n' "$(sha256 -q "$2")" "$2"; } >"$manifest.tmp"
+  mv "$manifest.tmp" "$manifest"
+}
+
 hypr_live=0
 if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then hypr_live=1; fi
 
@@ -161,7 +182,7 @@ if [ -e "$cfg/hypr/modules/autostart.lua" ]; then
   done
 fi
 if [ -d "$cfg/hypr" ]; then
-  bak="$cfg/hypr.bak-$(date +%Y%m%d%H%M%S)"
+  bak="$cfg/hypr.bak-$stamp"
   [ $hypr_live -eq 1 ] && hyprctl keyword misc:disable_autoreload true >/dev/null 2>&1 || true
   mv "$cfg/hypr" "$bak"
   say "backed up hypr -> $bak"
@@ -171,16 +192,16 @@ mv "$hstage" "$cfg/hypr"
 say "deployed hyprland -> $cfg/hypr"
 
 mkdir -p "$cfg/wallust" "$cfg/qt6ct" "$cfg/kitty" "$cfg/pulse"
-cp "$repo/apps/pulse/client.conf" "$cfg/pulse/client.conf"
+place "$repo/apps/pulse/client.conf" "$cfg/pulse/client.conf"
 cp -R "$repo/shell/wallust/." "$cfg/wallust/"
-cp "$repo/shell/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
-cp "$repo/apps/kitty/kitty.conf" "$cfg/kitty/kitty.conf"
+place "$repo/shell/qt6ct/qt6ct.conf" "$cfg/qt6ct/qt6ct.conf"
+place "$repo/apps/kitty/kitty.conf" "$cfg/kitty/kitty.conf"
 [ -e "$cfg/kitty/current-theme.conf" ] || cp "$repo/apps/kitty/current-theme.conf" "$cfg/kitty/"
 # fish: config.fish is Ryoku's, user.fish (sourced last) stays yours.
 mkdir -p "$cfg/fish" "$cfg/fastfetch"
-cp "$repo/apps/fish/config.fish" "$cfg/fish/config.fish"
-cp "$repo/apps/starship/starship.toml" "$cfg/starship.toml"
-cp "$repo/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
+place "$repo/apps/fish/config.fish" "$cfg/fish/config.fish"
+place "$repo/apps/starship/starship.toml" "$cfg/starship.toml"
+place "$repo/apps/fastfetch/config.jsonc" "$cfg/fastfetch/config.jsonc"
 cp "$repo/assets/brand/fastfetch-emblem.png" "$cfg/fastfetch/fastfetch-emblem.png"
 
 walls="$HOME/Pictures/Wallpapers"
