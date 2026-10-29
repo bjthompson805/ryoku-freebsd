@@ -24,7 +24,7 @@ hl.bind(mod .. " + CTRL + Down",   hl.dsp.window.resize({ x = 0,   y = 40,  rela
 -- Apps
 hl.bind(mod .. " + Return",    hl.dsp.exec_cmd("kitty"))
 hl.bind(mod .. " + E",         hl.dsp.exec_cmd("nautilus"))
-hl.bind(mod .. " + B",         hl.dsp.exec_cmd("chromium"))
+hl.bind(mod .. " + B",         hl.dsp.exec_cmd("gtk-launch chromium-browser"))
 hl.bind(mod .. " + ALT + C",   hl.dsp.exec_cmd("kcalc"))                       -- calculator (KCalc)
 hl.bind(mod .. " + ALT + N",   hl.dsp.exec_cmd("markdown-writer"))             -- Notepad (markdown-writer)
 hl.bind(mod .. " + N",         hl.dsp.exec_cmd("kitty -e nvim"))                -- neovim
