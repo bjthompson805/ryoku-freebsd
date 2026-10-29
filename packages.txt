@@ -54,6 +54,10 @@ acpi_call
 fish
 starship
 fastfetch
+eza
+
+# file manager (Super+E)
+nautilus
 
 # build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall)
 go
