@@ -32,6 +32,7 @@ cava
 libnotify
 pipewire
 pipewire-spa-oss-ng
+virtual_oss_bluetooth
 wireplumber
 upower
 ffmpeg

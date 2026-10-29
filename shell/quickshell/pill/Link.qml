@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Bluetooth
 import "Singletons"
 
 /**
@@ -73,8 +72,8 @@ PillSurface {
             + (ethIp.length ? " · " + ethIp : ""))
         : (wifiActive ? (wifiActive.name || "") : (!WifiLink.present ? "Offline" : (wifiOn ? "Nicht verbunden" : "Aus")))
 
-    readonly property var btAdapter: (typeof Bluetooth !== "undefined" && Bluetooth) ? Bluetooth.defaultAdapter : null
-    readonly property var btDevices: (typeof Bluetooth !== "undefined" && Bluetooth && Bluetooth.devices) ? Bluetooth.devices.values : []
+    readonly property var btAdapter: BluetoothLink.adapter
+    readonly property var btDevices: BluetoothLink.devices
     readonly property var btConnected: btDevices.filter(function(d) { return d && d.connected })
     readonly property bool btOn: btAdapter ? btAdapter.enabled === true : false
     readonly property var btPrimary: btConnected.length > 0 ? btConnected[0] : null

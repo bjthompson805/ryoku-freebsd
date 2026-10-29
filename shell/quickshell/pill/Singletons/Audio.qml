@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 
 // audio graph for the mixer: classifies Pipewire nodes into output devices,
@@ -163,9 +162,9 @@ Singleton {
     // the BlueZ device backing the active bluez sink, for its battery: matched
     // by MAC from the node name, else the first connected audio device.
     function btDeviceFor(n) {
-        if (!root.isBluez(n) || typeof Bluetooth === "undefined" || !Bluetooth || !Bluetooth.devices)
+        if (!root.isBluez(n))
             return null;
-        var devs = Bluetooth.devices.values;
+        var devs = BluetoothLink.devices;
         var mac = root.btMac(n);
         for (var i = 0; i < devs.length; i++)
             if (devs[i] && ((devs[i].address || "") + "").toUpperCase() === mac)

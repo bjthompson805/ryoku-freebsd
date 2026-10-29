@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Bluetooth
 import "Singletons"
 
 /**
@@ -73,11 +72,11 @@ Item {
     }
     Timer { id: micPoll; interval: 600; onTriggered: micProc.running = true }
 
-    readonly property var btAdapter: Bluetooth.defaultAdapter
+    readonly property var btAdapter: BluetoothLink.adapter
     readonly property bool btOn: btAdapter ? btAdapter.enabled : false
     function toggleBt() {
         if (root.btAdapter)
-            root.btAdapter.enabled = !root.btAdapter.enabled;
+            BluetoothLink.setAdapterEnabled(!root.btOn);
     }
 
     property bool nightOn: false
@@ -102,7 +101,7 @@ Item {
         if (WifiLink.present)
             WifiLink.setWifiEnabled(!off);
         if (root.btAdapter)
-            root.btAdapter.enabled = !off;
+            BluetoothLink.setAdapterEnabled(!off);
     }
 
     // tablet mode: disables the built-in keyboard + trackpad only, via the

@@ -14,3 +14,4 @@ singleton Radio Radio.qml
 singleton Performance Performance.qml
 singleton Spawn Spawn.qml
 SpawnCore SpawnCore.qml
+singleton BluetoothLink BluetoothLink.qml

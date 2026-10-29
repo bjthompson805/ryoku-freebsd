@@ -23,6 +23,15 @@
 #   ryoku-priv power-profile saver|balanced|performance
 #                                  powerd's AC and battery modes, kept in
 #                                  rc.conf so they outlive a reboot
+#   ryoku-priv bt pair <addr> <name>
+#                                  remember a device for hcsecd, PIN 0000
+#   ryoku-priv bt forget <addr>    undo pair, audio and hid for a device
+#   ryoku-priv bt audio on|off <addr>
+#                                  A2DP playback through a virtual_oss
+#                                  profile, kept in rc.conf across reboots
+#   ryoku-priv bt hid on|off <addr>
+#                                  keyboard or mouse through bthidd
+#   ryoku-priv bt power on|off     attach or detach the adapter's driver
 set -eu
 
 ps_prev=/var/run/ryoku-wifi-powersave.prev
@@ -197,13 +206,174 @@ charge_limit() {
       fi
       ;;
     *)
-      sed -n '7,25p' "$0" >&2
+      sed -n '7,34p' "$0" >&2
+      exit 2
+      ;;
+  esac
+}
+
+# Bluetooth on FreeBSD's own stack. hcsecd answers PIN and link key
+# requests, so a device is paired once it has an hcsecd.conf block; the
+# hosts file names it and is the world-readable record of what is paired.
+# The stack has no Secure Simple Pairing, so devices fall back to legacy
+# PIN pairing, and headsets take 0000. Audio is a virtual_oss profile per
+# device ("bt" plus the address's last six digits, which also serves as
+# the hosts alias, since virtual_oss rejects long device names), serving
+# /dev/dsp.<profile>; ryoku-shell gives PipeWire a sink for it.
+bt_hosts=/etc/bluetooth/hosts
+bt_sec=/etc/bluetooth/hcsecd.conf
+bt_keys=/var/db/hcsecd.keys
+bt_hid=/etc/bluetooth/bthidd.conf
+bt_off=/var/run/ryoku-bt.off
+
+bt_addr() {
+  case "$1" in
+    [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]) ;;
+    *) echo "not a Bluetooth address: $1" >&2; exit 2 ;;
+  esac
+}
+
+bt_profile() {
+  echo "bt$(echo "$1" | tr -d : | cut -c7-12)"
+}
+
+# drop every `device { ... }` block for one address from an hcsecd or
+# bthidd config; both use that block layout.
+bt_drop_block() {
+  [ -f "$2" ] || return 0
+  awk -v a="$1" '
+    /^[ \t]*device[ \t]*\{/ { blk = $0 "\n"; inblk = 1; hit = 0; next }
+    inblk {
+      blk = blk $0 "\n"
+      if (tolower($0) ~ "bdaddr[ \t]+" a) hit = 1
+      if ($0 ~ /^[ \t]*\}/) { if (!hit) printf "%s", blk; inblk = 0 }
+      next
+    }
+    { print }
+  ' "$2" >"$2.tmp"
+  chmod "$(stat -f %Lp "$2")" "$2.tmp"
+  mv -f "$2.tmp" "$2"
+}
+
+bt_service_on() {
+  sysrc "${1}_enable=YES" >/dev/null
+  service "$1" restart >/dev/null 2>&1 || service "$1" start >/dev/null
+}
+
+bt_audio() {
+  p=$(bt_profile "$2")
+  case "$1" in
+    on)
+      kldload -n cuse
+      configs=$(sysrc -n virtual_oss_configs 2>/dev/null || true)
+      case " $configs " in *" $p "*) ;; *) configs="${configs:+$configs }$p" ;; esac
+      # -R /dev/null: headsets have no A2DP source; their mic is on the
+      # Handsfree profile, which virtual_oss does not speak.
+      sysrc virtual_oss_enable=YES virtual_oss_configs="$configs" \
+        "virtual_oss_$p=-C 2 -c 2 -r 48000 -b 16 -s 4ms -R /dev/null -P /dev/bluetooth/$p -d dsp.$p" >/dev/null
+      [ -f "/var/run/virtual_oss/$p.pid" ] && kill -0 "$(cat "/var/run/virtual_oss/$p.pid")" 2>/dev/null ||
+        service virtual_oss start "$p" >/dev/null
+      ;;
+    off)
+      if [ -f "/var/run/virtual_oss/$p.pid" ]; then
+        service virtual_oss stop "$p" >/dev/null 2>&1 || true
+      fi
+      configs=$(sysrc -n virtual_oss_configs 2>/dev/null || true)
+      configs=$(echo " $configs " | sed "s/ $p / /g; s/^ *//; s/ *\$//")
+      sysrc virtual_oss_configs="$configs" >/dev/null
+      sysrc -x "virtual_oss_$p" 2>/dev/null || true
+      ;;
+  esac
+}
+
+bt_hid_cmd() {
+  case "$1" in
+    on)
+      if ! grep -qi "bdaddr[[:space:]]*$2" "$bt_hid" 2>/dev/null; then
+        q=$(bthidcontrol -a "$2" query) || { echo "the device did not answer the HID query" >&2; exit 1; }
+        printf '%s\n' "$q" >>"$bt_hid"
+      fi
+      bt_service_on bthidd
+      ;;
+    off)
+      bt_drop_block "$2" "$bt_hid"
+      service bthidd status >/dev/null 2>&1 && service bthidd restart >/dev/null
+      ;;
+  esac
+}
+
+bt_cmd() {
+  case "${1:-} ${2:-}" in
+    "pair "*)
+      bt_addr "$2"
+      name=$(printf '%s' "${3:-}" | tr -c 'A-Za-z0-9_-' _ | cut -c1-40)
+      [ -n "$name" ] || name=$(bt_profile "$2")
+      p=$(bt_profile "$2")
+      grep -vi "^$2[[:space:]]" "$bt_hosts" >"$bt_hosts.tmp" || true
+      printf '%s\t%s %s\n' "$2" "$name" "$p" >>"$bt_hosts.tmp"
+      chmod 644 "$bt_hosts.tmp"
+      mv -f "$bt_hosts.tmp" "$bt_hosts"
+      bt_drop_block "$2" "$bt_sec"
+      printf '\ndevice {\n\tbdaddr\t%s;\n\tname\t"%s";\n\tkey\tnokey;\n\tpin\t"0000";\n}\n' \
+        "$2" "$name" >>"$bt_sec"
+      chmod 600 "$bt_sec"
+      bt_service_on hcsecd
+      bt_service_on sdpd
+      ;;
+    "forget "*)
+      bt_addr "$2"
+      bt_audio off "$2"
+      bt_hid_cmd off "$2"
+      bt_drop_block "$2" "$bt_sec"
+      if [ -f "$bt_keys" ]; then
+        grep -vi "^$2[[:space:]]" "$bt_keys" >"$bt_keys.tmp" || true
+        chmod 600 "$bt_keys.tmp"
+        mv -f "$bt_keys.tmp" "$bt_keys"
+      fi
+      grep -vi "^$2[[:space:]]" "$bt_hosts" >"$bt_hosts.tmp" || true
+      chmod 644 "$bt_hosts.tmp"
+      mv -f "$bt_hosts.tmp" "$bt_hosts"
+      service hcsecd status >/dev/null 2>&1 && service hcsecd restart >/dev/null
+      ;;
+    "audio on"|"audio off")
+      bt_addr "${3:-}"
+      bt_audio "$2" "$3"
+      ;;
+    "hid on"|"hid off")
+      bt_addr "${3:-}"
+      bt_hid_cmd "$2" "$3"
+      ;;
+    # power works on the driver: detaching ng_ubt takes the HCI node away
+    # and the radio with it. The marker tells ryoku-shell the adapter is
+    # there but off, since nothing else is left to show it.
+    # A detached device drops out of sysctl, so the marker also lists the
+    # units power on has to bring back.
+    "power off")
+      units=$(sysctl -N dev.ubt 2>/dev/null | sed -n 's/^dev\.ubt\.\([0-9]*\)\.%parent$/ubt\1/p')
+      printf '%s\n' $units >>"$bt_off"
+      for u in $units; do devctl disable "$u" 2>/dev/null || true; done
+      ;;
+    "power on")
+      if [ -f "$bt_off" ]; then
+        while read -r u; do
+          case "$u" in ubt[0-9]*) devctl enable "$u" 2>/dev/null || true ;; esac
+        done <"$bt_off"
+      fi
+      rm -f "$bt_off"
+      ;;
+    *)
+      sed -n '7,34p' "$0" >&2
       exit 2
       ;;
   esac
 }
 
 case "${1:-} ${2:-}" in
+  "bt "*)
+    shift
+    [ $# -le 3 ] || { sed -n '7,34p' "$0" >&2; exit 2; }
+    bt_cmd "$@"
+    ;;
   "power-profile saver"|"power-profile balanced"|"power-profile performance")
     # balanced is powerd's own default: hiadaptive on AC, adaptive on battery.
     # PowerMode.qml matches these exact strings to light the right tab.
@@ -217,7 +387,7 @@ case "${1:-} ${2:-}" in
     ;;
   "charge-limit "*)
     shift
-    [ $# -le 2 ] || { sed -n '7,25p' "$0" >&2; exit 2; }
+    [ $# -le 2 ] || { sed -n '7,34p' "$0" >&2; exit 2; }
     charge_limit "$@"
     ;;
   "hotspot up")
@@ -263,7 +433,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,25p' "$0" >&2
+    sed -n '7,34p' "$0" >&2
     exit 2
     ;;
 esac

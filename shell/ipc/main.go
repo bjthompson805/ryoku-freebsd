@@ -40,6 +40,9 @@ func main() {
 	if args[0] == "wifi" {
 		os.Exit(runWifi(args[1:]))
 	}
+	if args[0] == "bt" {
+		os.Exit(runBt(args[1:]))
+	}
 	if err := sendCommand(strings.Join(args, " ")); err != nil {
 		fmt.Fprintln(os.Stderr, "ryoku-shell:", err)
 		os.Exit(1)

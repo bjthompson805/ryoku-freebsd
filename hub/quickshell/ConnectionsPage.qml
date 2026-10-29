@@ -4,7 +4,7 @@ import "Singletons"
 
 // Connections section: Wi-Fi, Bluetooth, Hotspot, each a subtab. the subtab
 // bar reuses the hub Segmented control; each tab is self-contained, backed
-// by `ryoku-shell wifi` and the Quickshell Bluetooth service.
+// by `ryoku-shell wifi` and `ryoku-shell bt`.
 Item {
     id: page
 

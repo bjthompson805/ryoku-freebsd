@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell.Bluetooth
 import "Singletons"
 
 // status cluster in the reference iconography: Material Symbols for volume,
@@ -142,12 +141,12 @@ Grid {
     // bluetooth: click opens the bluetooth popout.
     Item {
         id: btIcon
-        visible: Bluetooth.defaultAdapter !== null
+        visible: BluetoothLink.hasAdapter
         width: status.glyphPx + 4 * status.s
         height: status.glyphPx + 4 * status.s
 
-        readonly property var adapter: Bluetooth.defaultAdapter
-        readonly property bool anyConnected: Bluetooth.devices.values.some(function (d) { return d && d.connected; })
+        readonly property var adapter: BluetoothLink.adapter
+        readonly property bool anyConnected: BluetoothLink.connectedCount > 0
 
         MaterialIcon {
             anchors.centerIn: parent

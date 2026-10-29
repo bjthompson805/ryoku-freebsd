@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell.Bluetooth
 import "Singletons"
 
 // Live Bluetooth bubbles for the palette: one compact card per CONNECTED
@@ -14,8 +13,7 @@ import "Singletons"
 // reports one. Corners are deliberately square. Nothing connected renders
 // nothing at all: the cards only exist while a link is live. Purely a glance
 // surface; pairing and toggling belong to the pill link and Hub Connections.
-// Backed by Quickshell.Bluetooth, so cards appear, drop, and re-battery
-// themselves live without polling.
+// Backed by BluetoothLink, so cards appear and drop as links come and go.
 Flow {
     id: root
 
@@ -25,9 +23,7 @@ Flow {
     visible: connected.length > 0
 
     readonly property var connected: {
-        if (typeof Bluetooth === "undefined" || !Bluetooth || !Bluetooth.devices)
-            return [];
-        var vals = Bluetooth.devices.values, out = [];
+        var vals = BluetoothLink.devices, out = [];
         for (var i = 0; i < vals.length; i++)
             if (vals[i] && vals[i].connected)
                 out.push(vals[i]);
