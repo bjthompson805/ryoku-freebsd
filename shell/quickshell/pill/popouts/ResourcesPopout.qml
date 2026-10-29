@@ -404,13 +404,6 @@ Item {
             }
         }
 
-        Metric {
-            visible: SysStats.npuAvailable
-            label: "NPU"
-            value: SysStats.npu + "%"
-            series: SysStats.npuHistory
-            warn: SysStats.npu > 85
-        }
         Metric { label: "Memory"; value: SysStats.mem + "%"; series: SysStats.memHistory; warn: SysStats.mem > 90 }
         Metric {
             visible: SysStats.tempAvailable
