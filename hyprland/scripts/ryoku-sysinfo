@@ -7,10 +7,11 @@
 export LC_ALL=C
 
 clean_gpu() {
-    sed -E 's/^[^ ]+ [^:]*: //; s/ \(rev [0-9a-f]+\)//; s/NVIDIA Corporation //; s/Advanced Micro Devices, Inc\. //; s/Intel Corporation //; s/\[AMD\/ATI\] //; s/.*\[([^]]+)\].*/\1/' | xargs | cut -c1-30
+    sed -E 's/NVIDIA Corporation //; s/Advanced Micro Devices, Inc\. //; s/Intel Corporation //; s/\[AMD\/ATI\] //; s/.*\[([^]]+)\].*/\1/' | xargs | cut -c1-30
 }
 
-gpus=$(lspci 2>/dev/null | grep -iE 'vga compatible|3d controller|display controller')
+# pciconf -lv prints each device's vendor/device lines before its class line.
+gpus=$(pciconf -lv 2>/dev/null | awk -F"'" '/^[^ \t]/{d=""} /device +=/{d=$2} /class +=.*display/{print d}')
 gpu1=$(printf '%s\n' "$gpus" | sed -n '1p' | clean_gpu)
 gpu2=$(printf '%s\n' "$gpus" | sed -n '2p' | clean_gpu)
 
@@ -35,16 +36,23 @@ grep -m1 'PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d'"' -f2
 uname -m
 uname -r
 echo "${SHELL##*/}"
-grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //; s/ *@ .*//; s/([^)]*)//; s/ w\/.*//' | xargs | cut -c1-26
-echo "$(nproc)C / $(nproc --all)T"
+sysctl -n hw.model | sed 's/ *@ .*//; s/([^)]*)//; s/ w\/.*//' | xargs | cut -c1-26
+echo "$(sysctl -n kern.smp.cores)C / $(sysctl -n hw.ncpu)T"
 echo "${gpu1:--}"
 echo "$gpu2"
-free -h --si | awk '/Mem:/{print $3" / "$2}'
-free | awk '/Mem:/{print int($3/$2*100)}'
+# used = physmem minus free, inactive and the ZFS ARC (released on demand),
+# the same sum the bar's memory meter uses.
+sysctl -n hw.physmem hw.pagesize vm.stats.vm.v_free_count vm.stats.vm.v_inactive_count \
+    kstat.zfs.misc.arcstats.size 2>/dev/null | xargs | awk '
+    function si(b) { return b >= 1e9 ? sprintf("%.1fG", b / 1e9) : sprintf("%dM", b / 1e6) }
+    { used = $1 - ($3 + $4) * $2 - $5; if (used < 0) used = 0
+      print si(used) " / " si($1); print int(used / $1 * 100) }'
 df -h / | awk 'NR==2{print $3" / "$2}'
 df / | awk 'NR==2{print int($3/($3+$4)*100)}'
-awk '{h=int($1/3600); m=int(($1%3600)/60); print h"h "m"m"}' /proc/uptime
-pacman -Qq 2>/dev/null | wc -l
-hyprctl monitors 2>/dev/null | awk '/x.*@/{match($0,/([0-9]+x[0-9]+)/,a); print a[1]; exit}'
-hyprctl monitors 2>/dev/null | awk '/x.*@/{match($0,/@([0-9]+)/,a); print a[1]"Hz"; exit}'
+boot=$(sysctl -n kern.boottime | sed -E 's/.*sec = ([0-9]+),.*/\1/')
+up=$(($(date +%s) - boot))
+echo "$((up / 3600))h $((up % 3600 / 60))m"
+pkg query %n 2>/dev/null | wc -l
+hyprctl monitors 2>/dev/null | sed -nE 's/^[[:space:]]*([0-9]+x[0-9]+)@.*/\1/p' | head -1
+hyprctl monitors 2>/dev/null | sed -nE 's/^[[:space:]]*[0-9]+x[0-9]+@([0-9]+).*/\1Hz/p' | head -1
 echo "$codename"

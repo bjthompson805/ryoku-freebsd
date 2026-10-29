@@ -289,7 +289,7 @@ Item {
                 }
             }
             Text {
-                text: SysInfo.sysPkgExplicit + " explicit   ·   " + SysInfo.sysPkgAur + " aur   ·   " + SysInfo.sysPackages + " total"
+                text: SysInfo.sysPkgExplicit + " explicit   ·   " + SysInfo.sysPkgAur + " local   ·   " + SysInfo.sysPackages + " total"
                 color: Theme.subtle
                 font.family: Theme.mono
                 font.pixelSize: 10
