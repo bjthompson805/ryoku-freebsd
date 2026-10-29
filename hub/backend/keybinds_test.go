@@ -135,3 +135,26 @@ hl.bind(mod .. " + A", function() hl.dispatch(hl.dsp.window.float({ action = "to
 		t.Errorf("desc = %q, want comment-derived description", w.Binds[0].Desc)
 	}
 }
+
+// a paragraph above a group is one category named by its first sentence, not
+// one category per line; a section with no binds does not show at all.
+func TestCommentBlockIsOneCategory(t *testing.T) {
+	const src = `-- Workspaces. Super+N focuses the Nth workspace OF THE CURRENT DESKTOP (a
+-- desktop is a block of 10 workspace ids). On desktop 2, Super+3 -> ws13.
+-- Super+Alt+N sends the active window to that slot.
+hl.bind(mod .. " + H", hl.dsp.workspace.toggle_special("scratch")) -- toggle the scratchpad
+
+-- Unused section
+
+-- Apps
+hl.bind(mod .. " + N", hl.dsp.exec_cmd("kitty -e nvim")) -- neovim
+`
+	l := parseBinds(src)
+	var names []string
+	for _, c := range l.Categories {
+		names = append(names, c.Name)
+	}
+	if got := strings.Join(names, "|"); got != "Workspaces|Apps" {
+		t.Errorf("categories = %q, want Workspaces|Apps", got)
+	}
+}

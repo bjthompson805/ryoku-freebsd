@@ -79,11 +79,14 @@ var (
 // parseBinds walks binds.lua a line at a time. section comments (`-- Apps`)
 // open a category; each hl.bind adds an entry, description = the trailing
 // comment if present, else derived from the dispatcher. the 1..0 workspace
-// loop collapses into two range entries.
+// loop collapses into two range entries. a multi-line comment opens one
+// category, named by the first sentence of its first line, and a section
+// with no binds is dropped.
 func parseBinds(src string) legend {
 	var cats []category
 	cur := -1
 	inLoop := false
+	inComment := false
 
 	add := func(b bind) {
 		if cur < 0 {
@@ -106,12 +109,15 @@ func parseBinds(src string) legend {
 		}
 
 		if !strings.Contains(trimmed, "hl.bind(") {
-			if m := reHeader.FindStringSubmatch(trimmed); m != nil {
-				cats = append(cats, category{Name: m[1]})
+			m := reHeader.FindStringSubmatch(trimmed)
+			if m != nil && !inComment {
+				cats = append(cats, category{Name: headerName(m[1])})
 				cur = len(cats) - 1
 			}
+			inComment = m != nil
 			continue
 		}
+		inComment = false
 
 		comment := ""
 		if m := reTrail.FindStringSubmatch(line); m != nil {
@@ -131,10 +137,21 @@ func parseBinds(src string) legend {
 		})
 	}
 
-	if cats == nil {
-		cats = []category{}
+	kept := []category{}
+	for _, c := range cats {
+		if len(c.Binds) > 0 {
+			kept = append(kept, c)
+		}
 	}
-	return legend{Categories: cats}
+	return legend{Categories: kept}
+}
+
+// headerName: "Workspaces. Super+N focuses ..." -> "Workspaces".
+func headerName(s string) string {
+	if i := strings.Index(s, ". "); i >= 0 {
+		s = s[:i]
+	}
+	return strings.TrimSuffix(s, ".")
 }
 
 // resolveKeys: first hl.bind arg -> display tokens. either a quoted key literal
