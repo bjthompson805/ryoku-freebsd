@@ -35,6 +35,16 @@ if status is-interactive
   set -g fish_color_escape         93D4E0
   set -g fish_color_autosuggestion 949699
 
+  # the freebsd vt console (ttyv*) doesn't parse 24-bit colour: it reads the
+  # rgb bytes of ESC[38;2;r;g;bm as separate sgr codes, so e.g. 42 turns into a
+  # green background. fall back to the 16-colour palette there, and stop other
+  # tools (starship, eza, fastfetch) from emitting truecolor either.
+  if string match -q '/dev/ttyv*' (tty)
+    set -g fish_term24bit 0
+    set -g fish_term256 0
+    set -e COLORTERM
+  end
+
   # branded system readout on terminal open.
   if command -v ryoku-fastfetch >/dev/null 2>&1
     ryoku-fastfetch
