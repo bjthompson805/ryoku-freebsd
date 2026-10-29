@@ -9,7 +9,7 @@ bootloader, or replace your base system.
 On a FreeBSD 15 machine with a working GPU driver (see the Handbook's
 `drm-kmod` chapter) and a normal user:
 
-    git clone <this repo> ~/code/ryoku-freebsd
+    git clone https://github.com/bjthompson805/ryoku-freebsd.git ~/code/ryoku-freebsd
     cd ~/code/ryoku-freebsd
     ./install.sh
 
