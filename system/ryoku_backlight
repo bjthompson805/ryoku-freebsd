@@ -28,6 +28,10 @@ ryoku_backlight_start()
 	# never come back to a black panel.
 	[ "$pct" -lt 5 ] && pct=5
 	backlight "$pct"
+	# some drivers round the level down on the way in, so a saved 30 would
+	# come back as 29 and creep lower each boot. nudge it back up.
+	[ "$(backlight -q)" -lt "$pct" ] && backlight $((pct + 1))
+	return 0
 }
 
 ryoku_backlight_stop()
