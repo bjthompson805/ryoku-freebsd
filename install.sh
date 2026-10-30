@@ -90,6 +90,9 @@ if [ $system -eq 1 ]; then
   $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_charge_limit" /usr/local/etc/rc.d/ryoku_charge_limit
   $as_root sysrc ryoku_charge_limit_enable=YES >/dev/null
   $as_root /usr/local/libexec/ryoku-priv charge-limit probe
+  # panel brightness survives a reboot: saved at shutdown, restored at boot.
+  $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_backlight" /usr/local/etc/rc.d/ryoku_backlight
+  $as_root sysrc ryoku_backlight_enable=YES >/dev/null
   say "charge limit: $(awk '$1 == "supported" { print ($2 == "true" ? "supported" : "not supported") }' /var/db/ryoku-charge-limit)"
 fi
 

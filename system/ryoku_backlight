@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# PROVIDE: ryoku_backlight
+# REQUIRE: kld
+# KEYWORD: shutdown
+#
+# Saves the panel brightness at shutdown and puts it back at boot, since the
+# driver brings the panel up at 100% every time. install.sh puts this in
+# /usr/local/etc/rc.d and enables it.
+
+. /etc/rc.subr
+
+name=ryoku_backlight
+rcvar=ryoku_backlight_enable
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+
+state=/var/db/ryoku-backlight
+
+ryoku_backlight_start()
+{
+	local pct
+	[ -c /dev/backlight/backlight0 ] || return 0
+	pct=$(cat "$state" 2>/dev/null)
+	case "$pct" in
+	''|*[!0-9]*) return 0 ;;
+	esac
+	# never come back to a black panel.
+	[ "$pct" -lt 5 ] && pct=5
+	backlight "$pct"
+}
+
+ryoku_backlight_stop()
+{
+	[ -c /dev/backlight/backlight0 ] || return 0
+	backlight -q >"$state.tmp" && mv "$state.tmp" "$state"
+}
+
+load_rc_config $name
+: "${ryoku_backlight_enable:=NO}"
+run_rc_command "$1"
