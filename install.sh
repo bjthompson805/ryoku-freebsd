@@ -102,7 +102,12 @@ if [ $system -eq 1 ]; then
   # polling every millisecond, ~1000 wakeups a second (0.5 W idle measured).
   # FreeBSD's stack has no HFP for it to carry; A2DP and HID use ACL.
   # Read when the driver attaches, so it takes effect at the next boot.
-  $as_root sysrc -f /boot/loader.conf net.bluetooth.usb_isoc_enable=0 >/dev/null
+  # (sysrc rejects the dots in loader tunable names, hence grep and sed.)
+  if grep -q '^net\.bluetooth\.usb_isoc_enable=' /boot/loader.conf; then
+    $as_root sed -i '' 's/^net\.bluetooth\.usb_isoc_enable=.*/net.bluetooth.usb_isoc_enable="0"/' /boot/loader.conf
+  else
+    echo 'net.bluetooth.usb_isoc_enable="0"' | $as_root tee -a /boot/loader.conf >/dev/null
+  fi
   say "charge limit: $(awk '$1 == "supported" { print ($2 == "true" ? "supported" : "not supported") }' /var/db/ryoku-charge-limit)"
 fi
 
