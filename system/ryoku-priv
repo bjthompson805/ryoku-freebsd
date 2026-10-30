@@ -350,20 +350,26 @@ bt_cmd() {
       bt_addr "${3:-}"
       bt_hid_cmd "$2" "$3"
       ;;
-    # power works on the driver: detaching ng_ubt takes the HCI node away
-    # and the radio with it. The marker tells ryoku-shell the adapter is
-    # there but off, since nothing else is left to show it.
-    # A detached device drops out of sysctl, so the marker also lists the
-    # units power on has to bring back.
+    # power unconfigures the adapter's USB device, which detaches ng_ubt the
+    # way unplugging it would, taking the HCI node and the radio with it;
+    # configuring it again has the USB stack probe it afresh. (devctl
+    # disable/enable must not be used: re-probing a USB child outside bus
+    # enumeration hands every USB driver NULL attach args and panics.)
+    # The marker tells ryoku-shell the adapter is there but off, since
+    # nothing else is left to show it, and lists the ugen devices power on
+    # has to bring back, since ubt drops out of sysctl once detached.
     "power off")
-      units=$(sysctl -N dev.ubt 2>/dev/null | sed -n 's/^dev\.ubt\.\([0-9]*\)\.%parent$/ubt\1/p')
-      printf '%s\n' $units >>"$bt_off"
-      for u in $units; do devctl disable "$u" 2>/dev/null || true; done
+      ugens=$(sysctl -n $(sysctl -N dev.ubt 2>/dev/null | grep '\.%location$') 2>/dev/null |
+        sed -n 's/.*ugen=\(ugen[0-9]*\.[0-9]*\).*/\1/p' | sort -u)
+      printf '%s\n' $ugens >>"$bt_off"
+      for g in $ugens; do usbconfig -d "$g" set_config 255 >/dev/null 2>&1 || true; done
       ;;
     "power on")
+      # older markers list ubt units disabled with devctl; those cannot be
+      # brought back safely, so they wait for a reboot.
       if [ -f "$bt_off" ]; then
-        while read -r u; do
-          case "$u" in ubt[0-9]*) devctl enable "$u" 2>/dev/null || true ;; esac
+        while read -r g; do
+          case "$g" in ugen[0-9]*.[0-9]*) usbconfig -d "$g" set_config 0 >/dev/null 2>&1 || true ;; esac
         done <"$bt_off"
       fi
       rm -f "$bt_off"
