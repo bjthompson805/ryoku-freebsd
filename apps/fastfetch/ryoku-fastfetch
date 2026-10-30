@@ -17,15 +17,28 @@ set -uo pipefail
 
 ( sleep 8; kill -9 $$ 2>/dev/null ) & disown
 
-config="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/config.jsonc"
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch"
+config="$dir/config.jsonc"
 if [ ! -f "$config" ]; then
   exec fastfetch "$@"
 fi
 
+# user overrides: $dir/user.args is never shipped, never touched on update.
+# one fastfetch flag per line (e.g. `--logo ~/.config/fastfetch/my.png`),
+# # for comments. passed after config.jsonc, so these win.
+user=()
+if [ -f "$dir/user.args" ]; then
+  while read -r flag value; do
+    [[ -z "$flag" || "$flag" == \#* ]] && continue
+    user+=("$flag")
+    [ -n "$value" ] && user+=("${value/#\~/$HOME}")
+  done <"$dir/user.args"
+fi
+
 if [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM:-}" = "xterm-kitty" ]; then
-  exec fastfetch --config "$config" --pipe false "$@"
+  exec fastfetch --config "$config" --pipe false "${user[@]}" "$@"
 elif command -v chafa >/dev/null 2>&1; then
-  exec fastfetch --config "$config" --logo-type chafa "$@"
+  exec fastfetch --config "$config" --logo-type chafa "${user[@]}" "$@"
 else
-  exec fastfetch --config "$config" --logo-type none "$@"
+  exec fastfetch --config "$config" --logo-type none "${user[@]}" "$@"
 fi
