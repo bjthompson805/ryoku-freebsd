@@ -98,6 +98,11 @@ if [ $system -eq 1 ]; then
   $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_power" /usr/local/etc/rc.d/ryoku_power
   $as_root sysrc ryoku_power_enable=YES >/dev/null
   $as_root /usr/local/libexec/ryoku-priv power-profile apply
+  # ng_ubt keeps a USB Bluetooth adapter's SCO (headset voice) channel
+  # polling every millisecond, ~1000 wakeups a second (0.5 W idle measured).
+  # FreeBSD's stack has no HFP for it to carry; A2DP and HID use ACL.
+  # Read when the driver attaches, so it takes effect at the next boot.
+  $as_root sysrc -f /boot/loader.conf net.bluetooth.usb_isoc_enable=0 >/dev/null
   say "charge limit: $(awk '$1 == "supported" { print ($2 == "true" ? "supported" : "not supported") }' /var/db/ryoku-charge-limit)"
 fi
 
