@@ -21,8 +21,9 @@ Singleton {
     // desktop entries' Name (case-insensitive substring, either direction so
     // a longer launcher Name still matches a shorter in-game title and vice
     // versa). to teach this a new title, no change is needed here -- just
-    // drop a .desktop entry (see wowclassic.desktop) with a Name that
-    // appears in that window's title, an Icon set, and
+    // drop a .desktop entry in ~/.local/share/applications with a Name that
+    // appears in that window's title (or, for a Wine game whose class is its
+    // exe name, StartupWMClass=<class>), an Icon set, and
     // Categories=X-Ryoku-IconLookup; so the launcher hides it (see
     // launcher/providers/apps/Apps.qml). NoDisplay=true would hide it from
     // the launcher too, but Quickshell's DesktopEntries.applications drops
@@ -63,12 +64,12 @@ Singleton {
         var key = resolveIconKey(cls, title);
         if (!key)
             return "";
-        var apps = DesktopEntries.applications.values;
-        for (var i = 0; i < apps.length; i++) {
-            var e = apps[i];
-            if (e && e.id && e.id.toLowerCase() === key.toLowerCase() && e.icon)
-                return Quickshell.iconPath(e.icon, "application-x-executable");
-        }
+        // heuristicLookup matches the entry id and StartupWMClass, so a Wine
+        // game whose class is its exe name (e.g. wowclassic.exe) is caught by
+        // a desktop entry carrying StartupWMClass=<that class>.
+        var e = DesktopEntries.heuristicLookup(key);
+        if (e && e.icon)
+            return Quickshell.iconPath(e.icon, "application-x-executable");
         return Quickshell.iconPath(key, "application-x-executable");
     }
 
