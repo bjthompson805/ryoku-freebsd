@@ -34,6 +34,11 @@
 #   ryoku-priv bt power on|off     attach or detach the adapter's driver
 set -eu
 
+# rc.d runs this with rc's PATH, which leaves out /usr/local, where
+# acpi_call and the other packaged tools live.
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+export PATH
+
 ps_prev=/var/run/ryoku-wifi-powersave.prev
 
 # the hotspot is an access-point clone of the Wi-Fi device, renamed so the
