@@ -93,6 +93,11 @@ if [ $system -eq 1 ]; then
   # panel brightness survives a reboot: saved at shutdown, restored at boot.
   $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_backlight" /usr/local/etc/rc.d/ryoku_backlight
   $as_root sysrc ryoku_backlight_enable=YES >/dev/null
+  # AMD CPPC cores start pinned at full speed; the power profile's
+  # preference is set again each boot, and now.
+  $as_root install -o root -g wheel -m 555 "$repo/system/ryoku_power" /usr/local/etc/rc.d/ryoku_power
+  $as_root sysrc ryoku_power_enable=YES >/dev/null
+  $as_root /usr/local/libexec/ryoku-priv power-profile apply
   say "charge limit: $(awk '$1 == "supported" { print ($2 == "true" ? "supported" : "not supported") }' /var/db/ryoku-charge-limit)"
 fi
 

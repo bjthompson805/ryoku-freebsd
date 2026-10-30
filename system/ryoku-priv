@@ -22,7 +22,9 @@
 #                                  boot, lift to 100% at shutdown if opted in
 #   ryoku-priv power-profile saver|balanced|performance
 #                                  powerd's AC and battery modes, kept in
-#                                  rc.conf so they outlive a reboot
+#                                  rc.conf so they outlive a reboot, and the
+#                                  matching AMD CPPC preference
+#   ryoku-priv power-profile apply set the CPPC preference again at boot
 #   ryoku-priv bt pair <addr> <name>
 #                                  remember a device for hcsecd, PIN 0000
 #   ryoku-priv bt forget <addr>    undo pair, audio and hid for a device
@@ -211,7 +213,7 @@ charge_limit() {
       fi
       ;;
     *)
-      sed -n '7,34p' "$0" >&2
+      sed -n '7,36p' "$0" >&2
       exit 2
       ;;
   esac
@@ -367,16 +369,33 @@ bt_cmd() {
       rm -f "$bt_off"
       ;;
     *)
-      sed -n '7,34p' "$0" >&2
+      sed -n '7,36p' "$0" >&2
       exit 2
       ;;
   esac
 }
 
+# AMD CPUs under hwpstate_amd's CPPC mode ignore powerd: the cores pick their
+# own clocks, steered by an energy/performance preference (0 fastest, 255
+# most frugal). the driver attaches pinned at full speed, so hand control to
+# the hardware and set the preference from the profile that powerd_flags
+# names. 192 measured as frugal as 255 at idle without the 2 GHz cap.
+# a no-op on CPUs without the driver.
+power_epp() {
+  case "$(sysrc -n powerd_flags 2>/dev/null)" in
+    "-a adaptive -b minimum") epp=192 ;;
+    "-a maximum -b hiadaptive") epp=0 ;;
+    *) epp=128 ;;
+  esac
+  for n in $(sysctl -N dev.hwpstate_amd 2>/dev/null | sed -n 's/^dev\.hwpstate_amd\.\([0-9]*\)\.epp$/\1/p'); do
+    sysctl -q dev.hwpstate_amd."$n".desired_performance=0 dev.hwpstate_amd."$n".epp="$epp" >/dev/null
+  done
+}
+
 case "${1:-} ${2:-}" in
   "bt "*)
     shift
-    [ $# -le 3 ] || { sed -n '7,34p' "$0" >&2; exit 2; }
+    [ $# -le 3 ] || { sed -n '7,36p' "$0" >&2; exit 2; }
     bt_cmd "$@"
     ;;
   "power-profile saver"|"power-profile balanced"|"power-profile performance")
@@ -389,10 +408,14 @@ case "${1:-} ${2:-}" in
     esac
     sysrc powerd_enable=YES powerd_flags="$flags" >/dev/null
     service powerd restart >/dev/null 2>&1 || service powerd start >/dev/null
+    power_epp
+    ;;
+  "power-profile apply")
+    power_epp
     ;;
   "charge-limit "*)
     shift
-    [ $# -le 2 ] || { sed -n '7,34p' "$0" >&2; exit 2; }
+    [ $# -le 2 ] || { sed -n '7,36p' "$0" >&2; exit 2; }
     charge_limit "$@"
     ;;
   "hotspot up")
@@ -438,7 +461,7 @@ case "${1:-} ${2:-}" in
     pkill -x webcamd 2>/dev/null || true
     ;;
   *)
-    sed -n '7,34p' "$0" >&2
+    sed -n '7,36p' "$0" >&2
     exit 2
     ;;
 esac

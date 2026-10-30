@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# PROVIDE: ryoku_power
+# REQUIRE: kld
+#
+# Sets the AMD CPPC energy/performance preference for the chosen power
+# profile at boot, since hwpstate_amd attaches with the cores pinned at full
+# speed. Does nothing on CPUs without that driver.
+# install.sh puts this in /usr/local/etc/rc.d and enables it.
+
+. /etc/rc.subr
+
+name=ryoku_power
+rcvar=ryoku_power_enable
+start_cmd="/usr/local/libexec/ryoku-priv power-profile apply"
+stop_cmd=":"
+
+load_rc_config $name
+: "${ryoku_power_enable:=NO}"
+run_rc_command "$1"
