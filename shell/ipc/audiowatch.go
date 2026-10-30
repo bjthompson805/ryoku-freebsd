@@ -65,6 +65,11 @@ func (d *daemon) watchAudio() {
 	}
 	reeval()
 
+	// sink events go on to the USB headset handling; the buffer rides out a
+	// burst while a pass is running.
+	sinks := make(chan sinkEvent, 64)
+	go d.watchUSBAudio(sinks)
+
 	for {
 		select {
 		case <-d.quit:
@@ -108,6 +113,13 @@ func (d *daemon) watchAudio() {
 		go func() {
 			sc := bufio.NewScanner(stdout)
 			for sc.Scan() {
+				if e, ok := parseSinkEvent(sc.Text()); ok {
+					select {
+					case sinks <- e:
+					default:
+					}
+					continue
+				}
 				if strings.Contains(sc.Text(), "sink-input") {
 					select {
 					case events <- struct{}{}:
