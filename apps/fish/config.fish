@@ -1,3 +1,15 @@
+# the freebsd vt console (ttyv*) never answers fish's terminal queries (primary
+# device attribute etc.), so fish stalls 10s at login and prints a warning.
+# features are read only at startup, so re-exec once with query-term disabled.
+# terminals under hyprland are unaffected.
+if status is-interactive; and string match -q '/dev/ttyv*' (tty)
+  if not contains no-query-term $fish_features
+    set -l login_flag
+    status is-login; and set login_flag -l
+    exec env fish_features=no-query-term fish $login_flag
+  end
+end
+
 # ~/.local/bin on PATH for every shell, not only interactive: tools dropped in
 # there (claude, oh-my-posh) work, and the ryoku-fastfetch wrapper below
 # resolves. fish_add_path is idempotent.

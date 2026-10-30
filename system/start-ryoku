@@ -8,4 +8,7 @@
 # watchdog launcher.
 PATH="$HOME/.local/bin:$PATH"
 export PATH
+# the vt-console fish sets this to stop terminal queries; desktop terminals
+# answer them fine, so don't let it leak into the session.
+unset fish_features
 exec ck-launch-session dbus-run-session start-hyprland
