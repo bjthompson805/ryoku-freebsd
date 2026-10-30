@@ -62,8 +62,8 @@ Singleton {
     // previous kern.cp_times sample: [idle, total] per core, for the deltas.
     property var _prevCores: []
 
-    // "nvidia" when nvidia-smi answers (the only GPU load source FreeBSD has),
-    // else "none". resolved once.
+    // "amdgpu" when drm-kmod exposes gpu_busy_percent as a sysctl, "nvidia"
+    // when nvidia-smi answers, else "none". resolved once.
     property string _gpuBackend: ""
     // per-engine busy% for the popout's engine-bar row, e.g. [{name:"sm",
     // pct:12}, ...].
@@ -169,12 +169,15 @@ Singleton {
         }
     }
 
-    // detect an NVIDIA GPU once. DRM engine counters (amdgpu, Intel) live in
-    // Linux's /proc fdinfo, which FreeBSD lacks, so other GPUs show no load.
+    // detect the GPU load source once. amdgpu's sysfs busy counters surface
+    // under sys.device.drmn0; Intel has no equivalent on FreeBSD, so it shows
+    // no load.
     Process {
         id: gpuResolve
         running: root.active && root._gpuBackend.length === 0
-        command: ["sh", "-c", "command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits >/dev/null 2>&1 && echo nvidia || echo none"]
+        command: ["sh", "-c", "if sysctl -n sys.device.drmn0.gpu_busy_percent >/dev/null 2>&1; then echo amdgpu; " +
+            "elif command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits >/dev/null 2>&1; then echo nvidia; " +
+            "else echo none; fi"]
         stdout: StdioCollector {
             onStreamFinished: root._gpuBackend = (this.text || "").trim() || "none"
         }
@@ -186,6 +189,43 @@ Singleton {
         running: root.active && root._gpuBackend === "nvidia"
         triggeredOnStart: true
         onTriggered: gpuNvidiaProc.running = true
+    }
+
+    Timer {
+        interval: 2000
+        repeat: true
+        running: root.active && root._gpuBackend === "amdgpu"
+        triggeredOnStart: true
+        onTriggered: gpuAmdProc.running = true
+    }
+
+    // graphics/compute and the VCN video block (encode + decode).
+    Process {
+        id: gpuAmdProc
+        command: ["sysctl", "-i", "sys.device.drmn0.gpu_busy_percent", "sys.device.drmn0.vcn_busy_percent"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var v = {};
+                (this.text || "").split("\n").forEach(function (ln) {
+                    var at = ln.indexOf(": ");
+                    if (at > 0)
+                        v[ln.slice(ln.lastIndexOf(".", at) + 1, at)] = Number(ln.slice(at + 2).trim());
+                });
+                var gfx = v["gpu_busy_percent"];
+                if (gfx === undefined || isNaN(gfx)) {
+                    root.gpuAvailable = false;
+                    return;
+                }
+                var clamp = function (n) { return Math.max(0, Math.min(100, Math.round(n))); };
+                var engines = [{ name: "gfx", pct: clamp(gfx) }];
+                if (v["vcn_busy_percent"] !== undefined && !isNaN(v["vcn_busy_percent"]))
+                    engines.push({ name: "video", pct: clamp(v["vcn_busy_percent"]) });
+                root.gpuEngines = engines;
+                root.gpu = engines[0].pct;
+                root.gpuHistory = root._push(root.gpuHistory, root.gpu);
+                root.gpuAvailable = true;
+            }
+        }
     }
 
     Process {

@@ -19,7 +19,12 @@ Item {
 
     anchors.fill: parent
 
-    implicitWidth: 260 * s
+    // the per-core grid widens rather than grows tall: enough columns to keep
+    // it to three rows (4 to 8 columns), each cell the width a 4-column grid
+    // has at the base 260px.
+    readonly property int coreCols: Math.min(8, Math.max(4, Math.ceil(SysStats.cpuPerCore.length / 3)))
+    readonly property real coreCellW: 52.5
+    implicitWidth: (32 + coreCols * coreCellW + (coreCols - 1) * 6) * s
     implicitHeight: body.implicitHeight + 27 * s
 
     component Divider: Rectangle {
@@ -100,7 +105,7 @@ Item {
         property int index: 0
         property int pct: 0
         readonly property bool warn: cell.pct > 85
-        width: (parent.width - 3 * 6 * root.s) / 4
+        width: (parent.width - (root.coreCols - 1) * 6 * root.s) / root.coreCols
         spacing: 3 * root.s
 
         Text {
@@ -365,7 +370,7 @@ Item {
             id: coreGrid
             visible: SysStats.cpuPerCore.length > 0
             width: parent.width
-            columns: 4
+            columns: root.coreCols
             columnSpacing: 6 * root.s
             rowSpacing: 8 * root.s
 
@@ -448,8 +453,10 @@ Item {
         id: psProc
         // a freshly-forked process's %cpu (ps's own busy-since-start / age-since-
         // start ratio) is unstable while its age is near zero, so the sampler
-        // routinely samples *itself* pegged near 100%. drop its own sh/ps pair.
-        command: ["sh", "-c", "ps -eo pcpu,comm --sort=-pcpu --no-headers | grep -Ev '^ *[0-9.]+ (ps|sh)$' | head -5"]
+        // routinely samples *itself* pegged near 100%. drop its own sh/ps pair,
+        // and the kernel's idle threads, which ps lists as a process. BSD ps:
+        // -r sorts by CPU, an empty `=` header suppresses the header line.
+        command: ["sh", "-c", "ps -ax -r -o pcpu= -o comm= | grep -Ev '^ *[0-9.]+ (ps|sh|idle)$' | head -5"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var out = [];
