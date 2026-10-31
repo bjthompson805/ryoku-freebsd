@@ -122,6 +122,28 @@ RYOKU_BLOBS_BUILD="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/blobs" "$repo/shell/plu
 "$repo/shell/quickshell/plugins/kit/install.sh" "$qml" >/dev/null
 say "building ryoku-livewall"
 "$repo/shell/livewall/build.sh" "$bin/ryoku-livewall"
+# markdown-writer, the notepad (Super+Alt+N), ships Linux packages only, so it
+# is built from its latest release tag. offline or broken, the copy already in
+# $bin stays and the install goes on.
+say "building markdown-writer"
+mw="${XDG_CACHE_HOME:-$HOME/.cache}/ryoku/markdown-writer"
+if [ -d "$mw/.git" ]; then
+  git -C "$mw" fetch -q --tags || say "could not fetch markdown-writer"
+else
+  git clone -q https://github.com/bjthompson805/markdown-writer "$mw" || say "could not fetch markdown-writer"
+fi
+if [ -d "$mw/.git" ]; then
+  tag=$(git -C "$mw" tag --sort=-v:refname | head -1)
+  if git -C "$mw" -c advice.detachedHead=false checkout -q "$tag" &&
+    (cd "$mw" && cargo build -q --release --locked); then
+    install -m755 "$mw/target/release/markdown-writer" "$bin/markdown-writer"
+    mkdir -p "$data/applications" "$data/icons/hicolor/256x256/apps"
+    install -m644 "$mw/assets/markdown-writer.desktop" "$data/applications/markdown-writer.desktop"
+    install -m644 "$mw/assets/icons/256x256/markdown-writer.png" "$data/icons/hicolor/256x256/apps/markdown-writer.png"
+  else
+    say "could not build markdown-writer $tag"
+  fi
+fi
 
 for s in ryoku-cmd-radio ryoku-cmd-game-mode; do
   install -m755 "$repo/hyprland/scripts/$s" "$bin/$s"

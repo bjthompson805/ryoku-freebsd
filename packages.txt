@@ -59,8 +59,9 @@ eza
 # file manager (Super+E)
 nautilus
 
-# build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall)
+# build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall, markdown-writer)
 go
+rust
 cmake
 ninja
 pkgconf
