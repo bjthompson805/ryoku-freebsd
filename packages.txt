@@ -59,6 +59,9 @@ eza
 # file manager (Super+E)
 nautilus
 
+# calculator (Super+Alt+C)
+kcalc
+
 # build (the Go programs, the Ryoku.Blobs plugin, ryoku-livewall, markdown-writer)
 go
 rust
