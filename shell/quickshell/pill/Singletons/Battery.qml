@@ -41,7 +41,7 @@ Singleton {
     property bool limitSupported: false
     property bool limitEnabled: false
     property int limitEnd: 0
-    property int limitMin: 50
+    property int limitMin: 5
     // lift the limit at poweroff so the battery fills while the machine is off;
     // the next boot re-applies it.
     property bool limitFullWhenOff: false

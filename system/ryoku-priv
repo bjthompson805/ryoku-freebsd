@@ -15,7 +15,7 @@
 #   ryoku-priv hotspot up|down     share the default route over Wi-Fi; up
 #                                  reads the network name and the password
 #                                  from stdin, one line each
-#   ryoku-priv charge-limit on|off|set <50-100>|full-when-off on|off
+#   ryoku-priv charge-limit on|off|set <5-100>|full-when-off on|off
 #                                  battery charge limit (ASUS firmware)
 #   ryoku-priv charge-limit probe|apply|release
 #                                  check for support (install.sh), apply at
@@ -194,7 +194,7 @@ charge_limit() {
       cl_put enabled false
       ;;
     "set "*)
-      case "$2" in [5-9][0-9]|100) ;; *) echo "the limit must be 50 to 100" >&2; exit 2 ;; esac
+      case "$2" in [5-9]|[1-9][0-9]|100) ;; *) echo "the limit must be 5 to 100" >&2; exit 2 ;; esac
       [ "$(cl_get enabled false)" = true ] && cl_write "$2"
       cl_put end "$2"
       ;;

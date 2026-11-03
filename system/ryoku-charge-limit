@@ -6,7 +6,7 @@
 #   status                 supported / enabled / end / min / full_when_off,
 #                          one "key value" per line
 #   on | off               enable or disable the limit
-#   set N                  make N% the limit (50-100)
+#   set N                  make N% the limit (5-100)
 #   full-when-off on|off   charge to full while powered off
 set -u
 
@@ -20,7 +20,7 @@ get() {
 
 case "${1:-}" in
   status)
-    printf 'supported %s\nenabled %s\nend %s\nmin 50\nfull_when_off %s\n' \
+    printf 'supported %s\nenabled %s\nend %s\nmin 5\nfull_when_off %s\n' \
       "$(get supported false)" "$(get enabled false)" "$(get end 80)" "$(get full_when_off false)"
     ;;
   on | off | set | full-when-off)
