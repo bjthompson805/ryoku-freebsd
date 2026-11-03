@@ -59,14 +59,20 @@ Item {
             root.modified(root.clampq(v));
         input.text = Qt.binding(() => root.shown.toFixed(root.decimals));
     }
-    // when debounced, steppers accumulate locally and commit once the hand
-    // settles (350ms); otherwise every bump commits immediately.
+    // when debounced, steppers accumulate a draft locally and commit it once
+    // the hand settles (350ms); otherwise every bump commits immediately. the
+    // draft stays on screen until value catches up to it, so a backend that
+    // reports older numbers while it works through a run of commits can't
+    // roll the display back. one that never confirms (it refused, a prompt was
+    // dismissed) gets `confirmWait` before the field shows value again.
     property real pending: NaN
+    property int confirmWait: 4000
     readonly property real shown: isNaN(pending) ? value : pending
     function bump(dir) {
-        var v = root.clampq((isNaN(root.pending) ? root.value : root.pending) + dir * root.step);
+        var v = root.clampq(root.shown + dir * root.step);
         if (root.debounce) {
             root.pending = v;
+            unconfirmed.stop();
             settle.restart();
         } else {
             root.modified(v);
@@ -76,18 +82,27 @@ Item {
         id: settle
         interval: 350
         onTriggered: {
-            if (!isNaN(root.pending) && root.pending !== root.value)
-                root.modified(root.pending);
-            // don't clear pending here: for a field whose value comes from
-            // polled server state (not a local mirror the field controls
-            // itself), value won't reflect this commit until the backend
-            // round-trip finishes and the next poll picks it up. Clearing
-            // eagerly would flash the display back to the stale old value in
-            // that gap. Keep showing the optimistic pending number until
-            // value itself catches up to confirm it (below), instead.
+            if (isNaN(root.pending))
+                return;
+            if (root.pending === root.value) {
+                root.pending = NaN;
+                return;
+            }
+            root.modified(root.pending);
+            unconfirmed.restart();
         }
     }
-    onValueChanged: if (!isNaN(pending) && value === pending) pending = NaN;
+    Timer {
+        id: unconfirmed
+        interval: root.confirmWait
+        onTriggered: root.pending = NaN
+    }
+    onValueChanged: {
+        if (!isNaN(pending) && value === pending && !settle.running) {
+            pending = NaN;
+            unconfirmed.stop();
+        }
+    }
 
     Text {
         anchors.left: parent.left
@@ -111,9 +126,9 @@ Item {
             id: key
             property string glyph: "+"
             property int dir: 1
-            // a press held past the repeat interval fires the Timer once while
-            // still pressed, then TapHandler.onTapped fires again on release --
-            // without this guard that's a double bump (e.g. two steps at once).
+            // a press held past 400ms starts repeating; until then a press
+            // is one tap, however long the click takes. once the hold has
+            // stepped, the release must not step again (onTapped fires on it).
             property bool repeated: false
             width: 30 * root.sizeScale
             height: 30 * root.sizeScale
@@ -140,9 +155,9 @@ Item {
                 onTapped: if (!key.repeated) root.bump(key.dir)
             }
             Timer {
-                interval: 90; repeat: true
+                interval: key.repeated ? 90 : 400
+                repeat: true
                 running: tap.pressed
-                triggeredOnStart: false
                 onTriggered: { root.bump(key.dir); key.repeated = true; }
             }
         }

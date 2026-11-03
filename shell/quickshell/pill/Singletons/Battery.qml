@@ -46,11 +46,10 @@ Singleton {
     // the next boot re-applies it.
     property bool limitFullWhenOff: false
 
-    // a percentage change finished (saved, refused, or a prompt dismissed)
-    // and limitEnd has been re-read, so an edited field can drop its draft.
-    signal limitSettled()
-    property bool limitSetting: false
     property int queuedLimit: -1
+    // a re-read asked for while one is running: it may have read the setting
+    // before the latest change landed, so it runs again once it finishes.
+    property bool limitRecheck: false
 
     readonly property bool powerIn: state === UPowerDeviceState.Charging
     // on AC but parked at the limit. firmware reports that three ways: pending
@@ -105,7 +104,11 @@ Singleton {
     }
 
     function refreshLimit() {
-        if (present && !limitStatus.running)
+        if (!present)
+            return;
+        if (limitStatus.running)
+            limitRecheck = true;
+        else
             limitStatus.running = true;
     }
 
@@ -131,7 +134,6 @@ Singleton {
             queuedLimit = Math.round(percent);
             return;
         }
-        limitSetting = true;
         runLimit(["ryoku-charge-limit", "set", String(Math.round(percent))]);
     }
 
@@ -164,10 +166,12 @@ Singleton {
                 root.limitEnd = parseInt(kv.end) || 0;
                 root.limitMin = parseInt(kv.min) || root.limitMin;
                 root.limitFullWhenOff = kv.full_when_off === "true";
-                if (root.limitSetting && !limitCmd.running) {
-                    root.limitSetting = false;
-                    root.limitSettled();
-                }
+            }
+        }
+        onExited: {
+            if (root.limitRecheck) {
+                root.limitRecheck = false;
+                Qt.callLater(root.refreshLimit);
             }
         }
     }

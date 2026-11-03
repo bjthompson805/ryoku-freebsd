@@ -262,11 +262,6 @@ Item {
                 debounce: true
                 value: Battery.limitEnd
                 onModified: (v) => Battery.setLimit(v)
-
-                Connections {
-                    target: Battery
-                    function onLimitSettled() { limitField.pending = NaN; }
-                }
             }
 
             Item {
