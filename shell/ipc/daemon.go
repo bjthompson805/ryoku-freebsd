@@ -251,11 +251,14 @@ func (d *daemon) ensure(name string) {
 // jemallocConf tunes the allocator Quickshell links. jemalloc defaults narenas
 // to 4*ncpu (64 on a 16-thread box) and only returns freed pages to the OS on
 // later allocation activity, so an idle shell that stops allocating keeps every
-// dirty page mapped as RSS. Two arenas is ample for an event-driven GUI, and a
-// background thread purges on the decay schedule even while idle. Each supervised
-// qs process pays this once, so five of them stop hoarding a dozen arenas of
-// freed heap apiece.
-const jemallocConf = "narenas:2,background_thread:true,dirty_decay_ms:5000,muzzy_decay_ms:5000"
+// dirty page mapped as RSS. Two arenas is ample for an event-driven GUI, and the
+// shell's timers keep allocating often enough for the decay schedule to purge.
+// Each supervised qs process pays this once, so five of them stop hoarding a
+// dozen arenas of freed heap apiece. No background_thread: every process qs
+// spawns inherits MALLOC_CONF, and FreeBSD's jemalloc prints "option
+// background_thread currently supports pthread only" from each single-threaded
+// one (sh, doas, awk), which then leads any stderr the shell shows in a toast.
+const jemallocConf = "narenas:2,dirty_decay_ms:5000,muzzy_decay_ms:5000"
 
 // qsEnv is the environment for a supervised quickshell process: the daemon's own
 // env (which carries the QML import path setupQmlImportPath exports) plus the
